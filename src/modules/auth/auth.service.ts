@@ -177,13 +177,21 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    // Generate new access token
+    // Generate new tokens
     const payload = { sub: user._id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
+    const newRefreshToken = this.generateRefreshToken();
+
+    // Update session with new refresh token
+    await session.updateOne({ 
+      refreshToken: newRefreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
 
     return {
       success: true,
       accessToken,
+      refreshToken: newRefreshToken,
     };
   }
 
