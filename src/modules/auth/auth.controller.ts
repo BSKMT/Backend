@@ -141,14 +141,15 @@ export class AuthController {
    * Helper: Set authentication cookies
    */
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Detect if we're in production (Vercel deployment)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
     
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' as const : 'lax' as const,
+      secure: true, // Always use secure in production
+      sameSite: 'none' as const, // Required for cross-site cookies
       path: '/',
-      ...(isProduction && { domain: '.bskmt.com' }), // Share cookies across subdomains
+      domain: '.bskmt.com', // Share cookies between api.bskmt.com and bskmt.com
     };
     
     // Access token cookie (15 minutes)
@@ -162,16 +163,23 @@ export class AuthController {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
+    
+    // Log cookie settings for debugging
+    console.log('Setting cookies with options:', {
+      domain: '.bskmt.com',
+      secure: true,
+      sameSite: 'none',
+      httpOnly: true
+    });
   }
 
   /**
    * Helper: Clear authentication cookies
    */
   private clearAuthCookies(res: Response) {
-    const isProduction = process.env.NODE_ENV === 'production';
     const clearOptions = {
       path: '/',
-      ...(isProduction && { domain: '.bskmt.com' }),
+      domain: '.bskmt.com',
     };
     
     res.clearCookie('accessToken', clearOptions);
