@@ -10,12 +10,14 @@ import {
   AddPQRSDFMessageDto,
   UpdatePQRSDFStatusDto,
 } from './dto/contact.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class ContactService {
   constructor(
     @InjectModel(ContactMessage.name) private contactMessageModel: Model<ContactMessage>,
     @InjectModel(PQRSDF.name) private pqrsdfModel: Model<PQRSDF>,
+    private emailService: EmailService,
   ) {}
 
   // Contact Messages
@@ -287,5 +289,52 @@ export class ContactService {
       porCategoria,
       tiempoPromedioRespuesta: avgResponseTime[0]?.avg || 0,
     };
+  }
+
+  // Email sending
+  async sendEmail(sendEmailDto: any) {
+    try {
+      const { type, recipientEmail, recipientName, templateData } = sendEmailDto;
+
+      switch (type) {
+        case 'verification':
+          await this.emailService.sendVerificationEmail({
+            email: recipientEmail,
+            firstName: templateData?.firstName || recipientName.split(' ')[0],
+            lastName: templateData?.lastName || recipientName.split(' ').slice(1).join(' '),
+            verificationUrl: templateData?.verificationUrl,
+          });
+          break;
+
+        case 'welcome':
+          await this.emailService.sendWelcomeEmail({
+            email: recipientEmail,
+            firstName: templateData?.userData?.firstName || recipientName.split(' ')[0],
+            lastName: templateData?.userData?.lastName || recipientName.split(' ').slice(1).join(' '),
+            membershipType: templateData?.userData?.membershipType,
+          });
+          break;
+
+        case 'password-reset':
+          await this.emailService.sendPasswordResetEmail({
+            email: recipientEmail,
+            firstName: templateData?.firstName || recipientName.split(' ')[0],
+            resetUrl: templateData?.resetUrl,
+          });
+          break;
+
+        default:
+          throw new BadRequestException(`Email type '${type}' not supported`);
+      }
+
+      return {
+        success: true,
+        message: 'Email sent successfully',
+        emailId: `email_${Date.now()}`,
+      };
+    } catch (error) {
+      console.error('Error sending email:', error);
+      throw new BadRequestException('Failed to send email');
+    }
   }
 }

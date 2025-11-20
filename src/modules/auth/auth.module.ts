@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { User, UserSchema } from '../../common/schemas/user.schema';
 import { Session, SessionSchema } from '../../common/schemas/session.schema';
+import { ContactModule } from '../contact/contact.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { Session, SessionSchema } from '../../common/schemas/session.schema';
       { name: User.name, schema: UserSchema },
       { name: Session.name, schema: SessionSchema },
     ]),
+    ContactModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy],

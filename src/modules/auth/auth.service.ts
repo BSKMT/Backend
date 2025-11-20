@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { User, UserDocument } from '../../common/schemas/user.schema';
 import { Session, SessionDocument } from '../../common/schemas/session.schema';
 import { LoginDto, RegisterDto } from '../../common/dto/auth.dto';
+import { ContactService } from '../contact/contact.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class AuthService {
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private contactService: ContactService,
   ) {}
 
   /**
@@ -126,7 +128,26 @@ export class AuthService {
     user.emailVerificationToken = verificationToken;
     await user.save();
 
-    // TODO: Send verification email
+    // Send verification email
+    try {
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'https://bskmt.com';
+      const verificationUrl = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+      await this.contactService.sendEmail({
+        type: 'verification',
+        recipientEmail: user.email,
+        recipientName: `${user.firstName} ${user.lastName}`,
+        templateData: {
+          verificationUrl,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        priority: 'high',
+      });
+    } catch (emailError) {
+      console.error('Error sending verification email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     return {
       success: true,

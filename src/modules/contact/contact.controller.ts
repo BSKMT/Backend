@@ -20,6 +20,7 @@ import {
   CreatePQRSDFDto,
   AddPQRSDFMessageDto,
   UpdatePQRSDFStatusDto,
+  SendEmailDto,
 } from './dto/contact.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -29,6 +30,19 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @Controller('contact')
 export class ContactController {
   constructor(private readonly contactService: ContactService) {}
+
+  // Email sending endpoint
+  @Post('send')
+  @ApiOperation({ summary: 'Send email' })
+  @ApiResponse({ status: 200, description: 'Email sent successfully' })
+  async sendEmail(@Body() sendEmailDto: SendEmailDto) {
+    const result = await this.contactService.sendEmail(sendEmailDto);
+    return {
+      success: true,
+      message: result.message,
+      data: result,
+    };
+  }
 
   // Contact Messages
   @Post('messages')

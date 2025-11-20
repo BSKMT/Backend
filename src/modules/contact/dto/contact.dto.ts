@@ -97,3 +97,40 @@ export class UpdatePQRSDFStatusDto {
   @IsString()
   respuestaFinal?: string;
 }
+
+export class SendEmailDto {
+  @ApiProperty({
+    example: 'welcome',
+    enum: ['welcome', 'verification', 'password-reset', 'notification', 'contact-response'],
+    description: 'Type of email to send',
+  })
+  @IsNotEmpty()
+  @IsString()
+  type: string;
+
+  @ApiProperty({ example: 'user@example.com', description: 'Recipient email address' })
+  @IsNotEmpty()
+  @IsEmail()
+  recipientEmail: string;
+
+  @ApiProperty({ example: 'John Doe', description: 'Recipient name' })
+  @IsNotEmpty()
+  @IsString()
+  recipientName: string;
+
+  @ApiProperty({
+    example: { userData: { firstName: 'John', lastName: 'Doe' } },
+    description: 'Template data for email',
+  })
+  @IsOptional()
+  templateData?: Record<string, any>;
+
+  @ApiProperty({
+    example: 'high',
+    enum: ['low', 'medium', 'high'],
+    description: 'Email priority',
+  })
+  @IsOptional()
+  @IsEnum(['low', 'medium', 'high'])
+  priority?: string;
+}
