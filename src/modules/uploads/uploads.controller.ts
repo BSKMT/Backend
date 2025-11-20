@@ -17,12 +17,74 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('uploads')
 @Controller('uploads')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
+  // Public endpoint for registration image upload
+  @Post('public/image')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload an image (public, for registration)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        folder: {
+          type: 'string',
+          description: 'Optional folder name',
+        },
+        publicId: {
+          type: 'string',
+          description: 'Optional public ID',
+        },
+        preserveOriginalSize: {
+          type: 'boolean',
+          description: 'Preserve original image size',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
+  async uploadPublicImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('folder') folder?: string,
+    @Body('publicId') publicId?: string,
+    @Body('preserveOriginalSize') preserveOriginalSize?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    this.uploadsService.validateImageFile(file);
+    
+    // Use custom filename if provided
+    const result = await this.uploadsService.uploadImage(
+      file, 
+      folder || 'user-profiles',
+      publicId,
+    );
+
+    return {
+      success: true,
+      message: 'Image uploaded successfully',
+      data: {
+        url: result.secure_url,
+        publicId: result.public_id,
+        format: result.format,
+        width: result.width,
+        height: result.height,
+        bytes: result.bytes,
+      },
+    };
+  }
+
   @Post('image')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload an image' })
@@ -68,6 +130,8 @@ export class UploadsController {
   }
 
   @Post('profile-image')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload profile image' })
@@ -107,6 +171,8 @@ export class UploadsController {
   }
 
   @Post('event-image')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload event image' })
@@ -153,6 +219,8 @@ export class UploadsController {
   }
 
   @Post('pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a PDF document' })
@@ -196,6 +264,8 @@ export class UploadsController {
   }
 
   @Post('document')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a document (PDF)' })
@@ -247,6 +317,8 @@ export class UploadsController {
   }
 
   @Delete('file')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a file from Cloudinary' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
   async deleteFile(@Body() deleteFileDto: DeleteFileDto) {
@@ -260,6 +332,8 @@ export class UploadsController {
   }
 
   @Delete('raw-file')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a raw file (PDF) from Cloudinary' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
   async deleteRawFile(@Body() deleteFileDto: DeleteFileDto) {
