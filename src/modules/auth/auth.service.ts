@@ -108,8 +108,12 @@ export class AuthService {
       throw new ConflictException('El número de documento ya está registrado');
     }
 
-    // Validate terms acceptance
-    if (!registerDto.acceptedTerms || !registerDto.acceptedPrivacyPolicy || !registerDto.acceptedDataProcessing) {
+    // Validate terms acceptance (check both field naming conventions)
+    const hasAcceptedTerms = registerDto.acceptedTerms || registerDto.termsAcceptance;
+    const hasAcceptedPrivacy = registerDto.acceptedPrivacyPolicy || registerDto.dataConsent;
+    const hasAcceptedDataProcessing = registerDto.acceptedDataProcessing || registerDto.liabilityWaiver;
+    
+    if (!hasAcceptedTerms || !hasAcceptedPrivacy || !hasAcceptedDataProcessing) {
       throw new BadRequestException('Debe aceptar todos los términos y condiciones');
     }
 
