@@ -8,7 +8,10 @@ import {
   Req,
   Get,
   Param,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from '../../common/guards/local-auth.guard';
@@ -40,8 +43,17 @@ export class AuthController {
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(loginDto);
+    
+    // Set tokens as httpOnly cookies
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    
+    // Return user data without tokens
+    return {
+      success: result.success,
+      user: result.user,
+    };
   }
 
   @Post('refresh')
@@ -49,8 +61,20 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refreshToken);
+  async refresh(@Req() req, @Res({ passthrough: true }) res: Response) {
+    // Get refresh token from cookie
+    const refreshToken = req.cookies?.refreshToken;
+    
+    if (!refreshToken) {
+      throw new UnauthorizedException('No refresh token provided');
+    }
+    
+    const result = await this.authService.refreshToken(refreshToken);
+    
+    // Set new tokens as httpOnly cookies
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    
+    return { success: true };
   }
 
   @Post('logout')
@@ -59,8 +83,17 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, description: 'Logout successful' })
-  async logout(@Req() req, @Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.logout(req.user.userId, refreshTokenDto.refreshToken);
+  async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies?.refreshToken;
+    
+    if (refreshToken) {
+      await this.authService.logout(req.user.userId, refreshToken);
+    }
+    
+    // Clear cookies
+    this.clearAuthCookies(res);
+    
+    return { success: true };
   }
 
   @Get('verify-email/:token')
@@ -102,5 +135,38 @@ export class AuthController {
       success: true,
       user: req.user,
     };
+  }
+
+  /**
+   * Helper: Set authentication cookies
+   */
+  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Access token cookie (15 minutes)
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/',
+    });
+    
+    // Refresh token cookie (7 days)
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+  }
+
+  /**
+   * Helper: Clear authentication cookies
+   */
+  private clearAuthCookies(res: Response) {
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
   }
 }
