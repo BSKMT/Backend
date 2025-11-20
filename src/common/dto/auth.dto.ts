@@ -1,5 +1,5 @@
-import { IsEmail, IsString, IsNotEmpty, MinLength, Matches } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, IsNotEmpty, MinLength, Matches, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
   @ApiProperty({
@@ -57,6 +57,11 @@ export class RegisterDto {
   @IsNotEmpty()
   phone: string;
 
+  @ApiPropertyOptional({ description: 'WhatsApp number', example: '+573001234567' })
+  @IsString()
+  @IsOptional()
+  whatsapp?: string;
+
   @ApiProperty({ description: 'Email address', example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
@@ -66,6 +71,11 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   address: string;
+
+  @ApiPropertyOptional({ description: 'Neighborhood', example: 'Chapinero' })
+  @IsString()
+  @IsOptional()
+  neighborhood?: string;
 
   @ApiProperty({ description: 'City', example: 'Bogotá' })
   @IsString()
@@ -77,10 +87,50 @@ export class RegisterDto {
   @IsNotEmpty()
   country: string;
 
+  @ApiPropertyOptional({ description: 'Postal code', example: '110111' })
+  @IsString()
+  @IsOptional()
+  postalCode?: string;
+
   @ApiProperty({ description: 'Binary gender', example: 'Masculino' })
   @IsString()
   @IsNotEmpty()
   binaryGender: string;
+
+  @ApiPropertyOptional({ description: 'Gender identity', example: 'Masculino' })
+  @IsString()
+  @IsOptional()
+  genderIdentity?: string;
+
+  @ApiPropertyOptional({ description: 'Occupation', example: 'Ingeniero' })
+  @IsString()
+  @IsOptional()
+  occupation?: string;
+
+  @ApiPropertyOptional({ description: 'Discipline', example: 'Velocidad' })
+  @IsString()
+  @IsOptional()
+  discipline?: string;
+
+  @ApiPropertyOptional({ description: 'Blood type', example: 'O' })
+  @IsString()
+  @IsOptional()
+  bloodType?: string;
+
+  @ApiPropertyOptional({ description: 'RH factor', example: '+' })
+  @IsString()
+  @IsOptional()
+  rhFactor?: string;
+
+  @ApiPropertyOptional({ description: 'Allergies', example: 'Ninguna' })
+  @IsString()
+  @IsOptional()
+  allergies?: string;
+
+  @ApiPropertyOptional({ description: 'Health insurance', example: 'Sanitas' })
+  @IsString()
+  @IsOptional()
+  healthInsurance?: string;
 
   @ApiProperty({ description: 'Emergency contact name', example: 'María Pérez' })
   @IsString()
@@ -96,6 +146,116 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   emergencyContactPhone: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact address', example: 'Calle 123 #45-67' })
+  @IsString()
+  @IsOptional()
+  emergencyContactAddress?: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact neighborhood', example: 'Chapinero' })
+  @IsString()
+  @IsOptional()
+  emergencyContactNeighborhood?: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact city', example: 'Bogotá' })
+  @IsString()
+  @IsOptional()
+  emergencyContactCity?: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact country', example: 'Colombia' })
+  @IsString()
+  @IsOptional()
+  emergencyContactCountry?: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact postal code', example: '110111' })
+  @IsString()
+  @IsOptional()
+  emergencyContactPostalCode?: string;
+
+  @ApiPropertyOptional({ description: 'Motorcycle brand', example: 'Honda' })
+  @IsString()
+  @IsOptional()
+  motorcycleBrand?: string;
+
+  @ApiPropertyOptional({ description: 'Motorcycle model', example: 'CBR 600RR' })
+  @IsString()
+  @IsOptional()
+  motorcycleModel?: string;
+
+  @ApiPropertyOptional({ description: 'Motorcycle year', example: '2022' })
+  @IsString()
+  @IsOptional()
+  motorcycleYear?: string;
+
+  @ApiPropertyOptional({ description: 'Motorcycle plate', example: 'ABC123' })
+  @IsString()
+  @IsOptional()
+  motorcyclePlate?: string;
+
+  @ApiPropertyOptional({ description: 'Motorcycle engine size', example: '600cc' })
+  @IsString()
+  @IsOptional()
+  motorcycleEngineSize?: string;
+
+  @ApiPropertyOptional({ description: 'Motorcycle color', example: 'Rojo' })
+  @IsString()
+  @IsOptional()
+  motorcycleColor?: string;
+
+  @ApiPropertyOptional({ description: 'SOAT expiration date', example: '2025-12-31' })
+  @IsString()
+  @IsOptional()
+  soatExpirationDate?: string;
+
+  @ApiPropertyOptional({ description: 'Technical review expiration date', example: '2025-12-31' })
+  @IsString()
+  @IsOptional()
+  technicalReviewExpirationDate?: string;
+
+  @ApiPropertyOptional({ description: 'License number', example: '12345678' })
+  @IsString()
+  @IsOptional()
+  licenseNumber?: string;
+
+  @ApiPropertyOptional({ description: 'License category', example: 'A2' })
+  @IsString()
+  @IsOptional()
+  licenseCategory?: string;
+
+  @ApiPropertyOptional({ description: 'License expiration date', example: '2025-12-31' })
+  @IsString()
+  @IsOptional()
+  licenseExpirationDate?: string;
+
+  @ApiPropertyOptional({ description: 'Membership type', example: 'premium' })
+  @IsString()
+  @IsOptional()
+  membershipType?: string;
+
+  @ApiPropertyOptional({ description: 'Profile image URL', example: 'https://example.com/image.jpg' })
+  @IsString()
+  @IsOptional()
+  profileImage?: string;
+
+  @ApiPropertyOptional({ description: 'Data consent', example: true })
+  @IsBoolean()
+  @IsOptional()
+  dataConsent?: boolean;
+
+  @ApiPropertyOptional({ description: 'Liability waiver', example: true })
+  @IsBoolean()
+  @IsOptional()
+  liabilityWaiver?: boolean;
+
+  @ApiPropertyOptional({ description: 'Terms acceptance', example: true })
+  @IsBoolean()
+  @IsOptional()
+  termsAcceptance?: boolean;
+
+  @ApiPropertyOptional({ description: 'reCAPTCHA token' })
+  @IsString()
+  @IsOptional()
+  recaptchaToken?: string;
 
   @ApiProperty({ description: 'Password', minLength: 8 })
   @IsString()
