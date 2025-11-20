@@ -261,23 +261,26 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/, {
     message:
       'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial',
   })
   password: string;
 
-  @ApiProperty({ description: 'Accepted terms and conditions', example: true })
-  @IsNotEmpty()
-  acceptedTerms: boolean;
+  @ApiPropertyOptional({ description: 'Accepted terms and conditions', example: true })
+  @IsBoolean()
+  @IsOptional()
+  acceptedTerms?: boolean;
 
-  @ApiProperty({ description: 'Accepted privacy policy', example: true })
-  @IsNotEmpty()
-  acceptedPrivacyPolicy: boolean;
+  @ApiPropertyOptional({ description: 'Accepted privacy policy', example: true })
+  @IsBoolean()
+  @IsOptional()
+  acceptedPrivacyPolicy?: boolean;
 
-  @ApiProperty({ description: 'Accepted data processing', example: true })
-  @IsNotEmpty()
-  acceptedDataProcessing: boolean;
+  @ApiPropertyOptional({ description: 'Accepted data processing', example: true })
+  @IsBoolean()
+  @IsOptional()
+  acceptedDataProcessing?: boolean;
 }
 
 export class RefreshTokenDto {
