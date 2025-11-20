@@ -143,22 +143,24 @@ export class AuthController {
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
     const isProduction = process.env.NODE_ENV === 'production';
     
-    // Access token cookie (15 minutes)
-    res.cookie('accessToken', accessToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      sameSite: isProduction ? 'none' as const : 'lax' as const,
       path: '/',
+      ...(isProduction && { domain: '.bskmt.com' }), // Share cookies across subdomains
+    };
+    
+    // Access token cookie (15 minutes)
+    res.cookie('accessToken', accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
     
     // Refresh token cookie (7 days)
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
     });
   }
 
@@ -166,7 +168,13 @@ export class AuthController {
    * Helper: Clear authentication cookies
    */
   private clearAuthCookies(res: Response) {
-    res.clearCookie('accessToken', { path: '/' });
-    res.clearCookie('refreshToken', { path: '/' });
+    const isProduction = process.env.NODE_ENV === 'production';
+    const clearOptions = {
+      path: '/',
+      ...(isProduction && { domain: '.bskmt.com' }),
+    };
+    
+    res.clearCookie('accessToken', clearOptions);
+    res.clearCookie('refreshToken', clearOptions);
   }
 }
