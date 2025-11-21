@@ -14,8 +14,28 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Security middleware
-  app.use(helmet());
-  app.use(cookieParser());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  }));
+  app.use(cookieParser(configService.get<string>('COOKIE_SECRET')));
 
   // CORS configuration
   const corsOrigin = configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000';
@@ -23,7 +43,16 @@ async function bootstrap() {
     origin: corsOrigin.split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'X-CSRF-Token', 
+      'X-Requested-With',
+      'X-Device-Fingerprint',
+      'X-Client-Version',
+    ],
+    exposedHeaders: ['X-CSRF-Token'],
+    maxAge: 86400, // 24 hours
   });
 
   // Global prefix

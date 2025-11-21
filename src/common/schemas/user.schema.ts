@@ -188,6 +188,9 @@ export class User {
   @Prop({ default: false })
   isEmailVerified: boolean;
 
+  @Prop({ default: false })
+  emailVerified: boolean; // Alias para consistencia
+
   @Prop({ select: false })
   emailVerificationToken?: string;
 
@@ -200,6 +203,23 @@ export class User {
   @Prop()
   lastLogin?: Date;
 
+  // 2FA / MFA
+  @Prop({ default: false })
+  twoFactorEnabled: boolean;
+
+  @Prop({ select: false })
+  twoFactorSecret?: string;
+
+  @Prop({ type: [String], default: [] })
+  backupCodes?: string[];
+
+  // Alias para nombres
+  @Prop()
+  nombre?: string;
+
+  @Prop()
+  apellido?: string;
+
   @Prop({ default: Date.now })
   lastActivity?: Date;
 
@@ -208,6 +228,9 @@ export class User {
 
   @Prop()
   lockUntil?: Date;
+
+  @Prop({ default: false })
+  isLocked: boolean;
 
   // Términos y condiciones
   @Prop({ default: false, required: true })
@@ -283,6 +306,30 @@ UserSchema.pre('save', async function (next) {
     const count = await UserModel.countDocuments();
     this.membershipNumber = `BSK${String(count + 1).padStart(6, '0')}`;
   }
+  next();
+});
+
+// Middleware para sincronizar alias de nombres
+UserSchema.pre('save', function (next) {
+  // Sincronizar nombre y apellido con aliases
+  if (this.firstName && !this.nombre) {
+    this.nombre = this.firstName;
+  }
+  if (this.lastName && !this.apellido) {
+    this.apellido = this.lastName;
+  }
+  if (this.nombre && !this.firstName) {
+    this.firstName = this.nombre;
+  }
+  if (this.apellido && !this.lastName) {
+    this.lastName = this.apellido;
+  }
+  
+  // Sincronizar emailVerified
+  if (this.isEmailVerified !== this.emailVerified) {
+    this.emailVerified = this.isEmailVerified;
+  }
+  
   next();
 });
 
