@@ -15,7 +15,6 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import { CreateEventDto, UpdateEventDto, RegisterToEventDto } from './dto/event.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -102,7 +101,7 @@ export class EventsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new event (Admin only)' })
@@ -119,7 +118,7 @@ export class EventsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update event (Admin only)' })
@@ -135,7 +134,7 @@ export class EventsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete event (Admin only)' })
@@ -150,7 +149,6 @@ export class EventsController {
   }
 
   @Post(':id/register')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Register user to event' })
@@ -167,7 +165,6 @@ export class EventsController {
   }
 
   @Delete(':id/register')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unregister user from event' })
@@ -182,7 +179,7 @@ export class EventsController {
   }
 
   @Post(':id/attendance')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark user attendance (Admin only)' })

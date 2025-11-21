@@ -22,7 +22,6 @@ import {
   UpdatePQRSDFStatusDto,
   SendEmailDto,
 } from './dto/contact.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -62,7 +61,7 @@ export class ContactController {
   }
 
   @Get('messages')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all contact messages (Admin only)' })
@@ -82,7 +81,7 @@ export class ContactController {
   }
 
   @Get('messages/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get contact message by ID (Admin only)' })
@@ -96,7 +95,7 @@ export class ContactController {
   }
 
   @Put('messages/:id/respond')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Respond to contact message (Admin only)' })
@@ -120,7 +119,7 @@ export class ContactController {
   }
 
   @Put('messages/:id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update contact message status (Admin only)' })
@@ -143,7 +142,7 @@ export class ContactController {
   }
 
   @Delete('messages/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete contact message (Super Admin only)' })
@@ -158,7 +157,6 @@ export class ContactController {
 
   // PQRSDF
   @Post('pqrsdf')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create PQRSDF' })
   @ApiResponse({ status: 201, description: 'PQRSDF created' })
@@ -172,7 +170,7 @@ export class ContactController {
   }
 
   @Get('pqrsdf')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all PQRSDF (Admin only)' })
@@ -194,7 +192,6 @@ export class ContactController {
   }
 
   @Get('pqrsdf/me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get my PQRSDF' })
   @ApiResponse({ status: 200, description: 'PQRSDF retrieved' })
@@ -208,7 +205,7 @@ export class ContactController {
   }
 
   @Get('pqrsdf/statistics')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get PQRSDF statistics (Admin only)' })
@@ -222,7 +219,6 @@ export class ContactController {
   }
 
   @Get('pqrsdf/:id')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get PQRSDF by ID' })
   @ApiResponse({ status: 200, description: 'PQRSDF retrieved' })
@@ -235,7 +231,6 @@ export class ContactController {
   }
 
   @Get('pqrsdf/number/:numero')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get PQRSDF by number' })
   @ApiResponse({ status: 200, description: 'PQRSDF retrieved' })
@@ -248,7 +243,6 @@ export class ContactController {
   }
 
   @Post('pqrsdf/:id/messages')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add message to PQRSDF' })
   @ApiResponse({ status: 200, description: 'Message added' })
@@ -271,7 +265,7 @@ export class ContactController {
   }
 
   @Put('pqrsdf/:id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update PQRSDF status (Admin only)' })

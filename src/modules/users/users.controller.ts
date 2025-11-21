@@ -20,7 +20,6 @@ import {
   ChangePasswordDto,
   UpdateUserMembershipDto,
 } from './dto/user.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -30,7 +29,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users (Admin only)' })
@@ -61,7 +60,6 @@ export class UsersController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
@@ -74,7 +72,6 @@ export class UsersController {
   }
 
   @Get('search')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Search users' })
   @ApiQuery({ name: 'q', required: true })
@@ -89,7 +86,6 @@ export class UsersController {
   }
 
   @Get('by-city/:city')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get users by city' })
   @ApiResponse({ status: 200, description: 'Users retrieved' })
@@ -103,7 +99,6 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
@@ -117,7 +112,6 @@ export class UsersController {
   }
 
   @Get(':id/stats')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user statistics' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved' })
@@ -130,7 +124,6 @@ export class UsersController {
   }
 
   @Put('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user profile' })
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
@@ -144,7 +137,6 @@ export class UsersController {
   }
 
   @Put('me/password')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Change password' })
@@ -159,7 +151,7 @@ export class UsersController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update user (Admin only)' })
@@ -174,7 +166,7 @@ export class UsersController {
   }
 
   @Put(':id/role')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update user role (Super Admin only)' })
@@ -189,7 +181,7 @@ export class UsersController {
   }
 
   @Put(':id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle user status (Admin only)' })
@@ -204,7 +196,7 @@ export class UsersController {
   }
 
   @Put(':id/membership')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update user membership type (Admin only)' })
@@ -222,7 +214,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete user (Super Admin only)' })

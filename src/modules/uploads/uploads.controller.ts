@@ -13,7 +13,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { UploadsService } from './uploads.service';
 import { DeleteFileDto } from './dto/upload.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('uploads')
 @Controller('uploads')
@@ -83,7 +82,6 @@ export class UploadsController {
   }
 
   @Post('image')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -130,7 +128,6 @@ export class UploadsController {
   }
 
   @Post('profile-image')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -171,7 +168,6 @@ export class UploadsController {
   }
 
   @Post('event-image')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -219,7 +215,6 @@ export class UploadsController {
   }
 
   @Post('pdf')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -264,7 +259,6 @@ export class UploadsController {
   }
 
   @Post('document')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -317,7 +311,6 @@ export class UploadsController {
   }
 
   @Delete('file')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a file from Cloudinary' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
@@ -332,7 +325,6 @@ export class UploadsController {
   }
 
   @Delete('raw-file')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a raw file (PDF) from Cloudinary' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })

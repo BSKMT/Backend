@@ -17,7 +17,6 @@ import {
   UpdateMembershipDto,
   ApplyMembershipDto,
 } from './dto/membership.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -40,7 +39,7 @@ export class MembershipsController {
   }
 
   @Get('statistics')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all memberships statistics (Admin only)' })
@@ -79,7 +78,7 @@ export class MembershipsController {
   }
 
   @Get(':id/statistics')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get membership statistics (Admin only)' })
@@ -105,7 +104,7 @@ export class MembershipsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create membership (Admin only)' })
@@ -120,7 +119,6 @@ export class MembershipsController {
   }
 
   @Post('apply')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Apply for membership' })
   @ApiResponse({ status: 200, description: 'Membership application successful' })
@@ -130,7 +128,7 @@ export class MembershipsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update membership (Admin only)' })
@@ -145,7 +143,7 @@ export class MembershipsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete membership (Super Admin only)' })

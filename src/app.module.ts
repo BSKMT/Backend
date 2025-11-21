@@ -4,7 +4,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './config/database/database.module';
 import { RedisModule } from './config/redis/redis.module';
-import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MembershipsModule } from './modules/memberships/memberships.module';
@@ -43,7 +42,6 @@ import { validate } from './config/env.validation';
     RedisModule,
 
     // Feature modules
-    AuthModule,
     UsersModule,
     AdminModule,
     MembershipsModule,

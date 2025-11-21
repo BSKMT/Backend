@@ -14,7 +14,6 @@ import {
   SendSmsDto,
   CreatePaymentDto,
 } from './dto/webhook.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
@@ -47,7 +46,6 @@ export class WebhooksController {
   }
 
   @Post('bold/payment')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create Bold payment link' })
   @ApiResponse({ status: 201, description: 'Payment link created' })
@@ -83,7 +81,7 @@ export class WebhooksController {
   }
 
   @Post('sms/send')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send SMS (Admin only)' })
@@ -94,7 +92,7 @@ export class WebhooksController {
   }
 
   @Post('sms/bulk')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send bulk SMS (Admin only)' })
@@ -107,7 +105,7 @@ export class WebhooksController {
   }
 
   @Post('email/send')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send email (Admin only)' })
@@ -120,7 +118,7 @@ export class WebhooksController {
   }
 
   @Post('email/bulk')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles('admin', 'super-admin')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send bulk email (Admin only)' })
