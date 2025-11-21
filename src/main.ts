@@ -44,8 +44,23 @@ async function bootstrap() {
 
   // CORS configuration
   const corsOrigin = configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000';
+  const allowedOrigins = corsOrigin.split(',').map(origin => origin.trim());
+  
   app.enableCors({
-    origin: corsOrigin.split(','),
+    origin: (origin, callback) => {
+      // Permitir requests sin origin (mobile apps, Postman, etc)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Verificar si el origin está en la lista permitida
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      
+      // Rechazar origin no permitido
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -55,9 +70,13 @@ async function bootstrap() {
       'X-Requested-With',
       'X-Device-Fingerprint',
       'X-Client-Version',
+      'Accept',
+      'Origin',
     ],
-    exposedHeaders: ['X-CSRF-Token'],
+    exposedHeaders: ['X-CSRF-Token', 'Set-Cookie'],
     maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Global prefix
