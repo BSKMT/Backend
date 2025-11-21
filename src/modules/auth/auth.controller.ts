@@ -46,10 +46,10 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
     
-    // Set tokens as httpOnly cookies
+    // Set httpOnly cookies
     this.setAuthCookies(res, result.accessToken, result.refreshToken);
     
-    // Return user data without tokens
+    // Return user data only
     return {
       success: result.success,
       user: result.user,
@@ -62,16 +62,15 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refresh(@Req() req, @Res({ passthrough: true }) res: Response) {
-    // Get refresh token from cookie
     const refreshToken = req.cookies?.refreshToken;
     
     if (!refreshToken) {
-      throw new UnauthorizedException('No refresh token provided');
+      throw new UnauthorizedException('No refresh token');
     }
     
     const result = await this.authService.refreshToken(refreshToken);
     
-    // Set new tokens as httpOnly cookies
+    // Update cookies
     this.setAuthCookies(res, result.accessToken, result.refreshToken);
     
     return { success: true };
@@ -138,51 +137,33 @@ export class AuthController {
   }
 
   /**
-   * Helper: Set authentication cookies
+   * Set httpOnly cookies for authentication
    */
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
-    // Detect if we're in production (Vercel deployment)
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
-    
     const cookieOptions = {
       httpOnly: true,
-      secure: true, // Always use secure in production
-      sameSite: 'none' as const, // Required for cross-site cookies
+      secure: true,
+      sameSite: 'none' as const,
       path: '/',
-      domain: '.bskmt.com', // Share cookies between api.bskmt.com and bskmt.com
+      domain: '.bskmt.com',
     };
     
-    // Access token cookie (15 minutes)
     res.cookie('accessToken', accessToken, {
       ...cookieOptions,
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 15 * 60 * 1000, // 15 min
     });
     
-    // Refresh token cookie (7 days)
     res.cookie('refreshToken', refreshToken, {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    
-    // Log cookie settings for debugging
-    console.log('Setting cookies with options:', {
-      domain: '.bskmt.com',
-      secure: true,
-      sameSite: 'none',
-      httpOnly: true
-    });
   }
 
   /**
-   * Helper: Clear authentication cookies
+   * Clear authentication cookies
    */
   private clearAuthCookies(res: Response) {
-    const clearOptions = {
-      path: '/',
-      domain: '.bskmt.com',
-    };
-    
-    res.clearCookie('accessToken', clearOptions);
-    res.clearCookie('refreshToken', clearOptions);
+    res.clearCookie('accessToken', { path: '/', domain: '.bskmt.com' });
+    res.clearCookie('refreshToken', { path: '/', domain: '.bskmt.com' });
   }
 }
