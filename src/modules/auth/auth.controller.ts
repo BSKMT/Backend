@@ -27,16 +27,17 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { Public } from './decorators/public.decorator';
 import { GetUser } from './decorators/get-user.decorator';
+import { ThrottleRegister, ThrottleLogin, ThrottleResetPassword, ThrottleResendVerification } from '../../common/decorators/throttle.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
-@UseGuards(ThrottlerGuard)
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @ThrottleRegister()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Registrar nuevo usuario' })
@@ -67,11 +68,12 @@ export class AuthController {
   }
 
   @Public()
+  @ThrottleLogin()
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión' })
-  @ApiResponse({ status: 200, description: 'Login exitoso' })
+  @ApiResponse({ status: 200, description: 'Login exitoso o requiere 2FA' })
   @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
   async login(
     @Body() loginDto: LoginDto,
@@ -81,7 +83,52 @@ export class AuthController {
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
     const deviceFingerprint = req.headers['x-device-fingerprint'] as string;
+    const rememberDevice = req.cookies?.['remember_device'];
 
+    // Validar seguridad antes del login
+    const securityCheck = await this.authService.validateLoginSecurity(
+      req.user._id.toString(),
+      req.user.email,
+      req.user.nombre || req.user.email,
+      ipAddress,
+      userAgent,
+      deviceFingerprint,
+    );
+
+    // Si no está permitido por análisis de seguridad
+    if (!securityCheck.allowed) {
+      return {
+        success: false,
+        message: 'Login bloqueado por seguridad',
+        requiresAction: true,
+        alerts: securityCheck.alerts,
+      };
+    }
+
+    // Si requiere 2FA, no generar tokens aún
+    if (securityCheck.requires2FA && !loginDto.twoFactorCode) {
+      return {
+        success: false,
+        requires2FA: true,
+        requiresDeviceTrust: securityCheck.requiresDeviceTrust,
+        message: 'Se requiere código de autenticación de dos factores',
+        tempToken: req.user._id.toString(), // Token temporal para siguiente paso
+      };
+    }
+
+    // Si proporcionó código 2FA, verificarlo
+    if (loginDto.twoFactorCode) {
+      const is2FAValid = await this.authService.verify2FACode(
+        req.user._id.toString(),
+        loginDto.twoFactorCode,
+      );
+
+      if (!is2FAValid) {
+        throw new UnauthorizedException('Código 2FA inválido');
+      }
+    }
+
+    // Proceder con login normal
     const { accessToken, refreshToken, user } = await this.authService.login(
       req.user,
       ipAddress,
@@ -244,7 +291,33 @@ export class AuthController {
     };
   }
 
+  @ThrottleResendVerification()
+  @UseGuards(JwtAuthGuard)
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reenviar email de verificación' })
+  @ApiResponse({ status: 200, description: 'Email de verificación reenviado' })
+  @ApiResponse({ status: 400, description: 'Email ya verificado' })
+  @ApiBearerAuth()
+  async resendVerification(
+    @GetUser() user: any,
+    @Req() req: Request,
+  ) {
+    const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    await this.authService.resendVerificationEmail(user.userId, ipAddress, userAgent);
+
+    this.logger.log(`Verification email resent for user: ${user.userId}`);
+
+    return {
+      success: true,
+      message: 'Email de verificación enviado. Revisa tu bandeja de entrada.',
+    };
+  }
+
   @Public()
+  @ThrottleResetPassword()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Solicitar reset de contraseña' })
@@ -273,6 +346,7 @@ export class AuthController {
   }
 
   @Public()
+  @ThrottleResetPassword()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resetear contraseña' })

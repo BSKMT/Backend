@@ -3,7 +3,13 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './config/database/database.module';
-import { RedisModule } from './config/redis/redis.module';
+import { RedisModule as ConfigRedisModule } from './config/redis/redis.module';
+import { RedisModule } from './modules/redis/redis.module';
+import { QueueModule } from './modules/queue/queue.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { TwoFactorModule } from './modules/two-factor/two-factor.module';
+import { DeviceModule } from './modules/devices/device.module';
+import { SecurityModule } from './modules/security/security.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -40,7 +46,15 @@ import { validate } from './config/env.validation';
 
     // Core modules
     DatabaseModule,
+    ConfigRedisModule,
     RedisModule,
+    QueueModule,
+    AuditModule,
+
+    // Security modules
+    TwoFactorModule,
+    DeviceModule,
+    SecurityModule,
 
     // Feature modules
     AuthModule,

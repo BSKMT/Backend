@@ -17,6 +17,11 @@ import { RefreshToken, RefreshTokenDocument } from './entities/refresh-token.sch
 import { PasswordResetToken, PasswordResetTokenDocument } from './entities/password-reset-token.schema';
 import { EmailVerificationToken, EmailVerificationTokenDocument } from './entities/email-verification-token.schema';
 import { RegisterDto } from './dto/register.dto';
+import { EmailQueueService } from '../queue/email-queue.service';
+import { AuditService } from '../audit/audit.service';
+import { TwoFactorService } from '../two-factor/two-factor.service';
+import { DeviceService } from '../devices/device.service';
+import { SecurityService } from '../security/security.service';
 
 // Helper para manejar errores
 const getErrorMessage = (error: unknown): string => {
@@ -41,6 +46,11 @@ export class AuthService {
     @InjectModel(EmailVerificationToken.name) private emailVerificationTokenModel: Model<EmailVerificationTokenDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailQueueService: EmailQueueService,
+    private auditService: AuditService,
+    private twoFactorService: TwoFactorService,
+    private deviceService: DeviceService,
+    private securityService: SecurityService,
   ) {}
 
   /**
@@ -79,6 +89,8 @@ export class AuthService {
         // Incrementar intentos fallidos
         await this.handleFailedLogin(user);
         this.logger.warn(`Failed login attempt for user: ${email}`);
+        // Registrar intento fallido en auditoría
+        await this.auditService.logLoginFailure(email, 'unknown', 'unknown', 'Invalid password');
         return null;
       }
 
@@ -152,6 +164,9 @@ export class AuthService {
 
       this.logger.log(`New user registered: ${user.email}`);
 
+      // Registrar en auditoría
+      await this.auditService.logRegister(user._id.toString(), user.email, ipAddress, userAgent);
+
       // Generar token de verificación de email
       await this.createEmailVerificationToken(user._id.toString(), user.email, ipAddress, userAgent);
 
@@ -179,17 +194,15 @@ export class AuthService {
         role: user.role,
       };
 
-      // Generar tokens
-      const accessToken = this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_EXPIRATION') || '15m',
-      });
+      // Generar tokens con RS256 (usa configuración del módulo)
+      const accessToken = this.jwtService.sign(payload);
 
+      // Refresh token con expiración extendida
       const refreshTokenExpiration = rememberMe ? '30d' : '7d';
-      const refreshToken = this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: refreshTokenExpiration,
-      });
+      const refreshToken = this.jwtService.sign(
+        { ...payload, type: 'refresh' },
+        { expiresIn: refreshTokenExpiration }
+      );
 
       // Guardar refresh token
       await this.saveRefreshToken(
@@ -201,7 +214,7 @@ export class AuthService {
       );
 
       // Crear sesión
-      await this.createSession(
+      const session = await this.createSession(
         user._id.toString(),
         accessToken,
         refreshToken,
@@ -211,6 +224,15 @@ export class AuthService {
       );
 
       this.logger.log(`User logged in: ${user.email}`);
+
+      // Registrar login exitoso en auditoría
+      await this.auditService.logLoginSuccess(
+        user._id.toString(),
+        user.email,
+        ipAddress,
+        userAgent,
+        session._id.toString()
+      );
 
       return {
         accessToken,
@@ -230,6 +252,77 @@ export class AuthService {
       this.logger.error(`Error during login: ${getErrorMessage(error)}`, getErrorStack(error));
       throw error;
     }
+  }
+
+  /**
+   * Validar seguridad antes del login
+   */
+  async validateLoginSecurity(
+    userId: string,
+    email: string,
+    userName: string,
+    ipAddress: string,
+    userAgent: string,
+    deviceFingerprint?: string,
+  ): Promise<{ 
+    allowed: boolean; 
+    requires2FA: boolean; 
+    requiresDeviceTrust: boolean;
+    riskScore: number; 
+    alerts: string[] 
+  }> {
+    // Analizar con SecurityService
+    const securityAnalysis = await this.securityService.analyzeLoginAttempt({
+      userId,
+      email,
+      userName,
+      ipAddress,
+      userAgent,
+      deviceFingerprint,
+    });
+
+    if (!securityAnalysis.allowed) {
+      return {
+        allowed: false,
+        requires2FA: true,
+        requiresDeviceTrust: false,
+        riskScore: securityAnalysis.riskScore,
+        alerts: securityAnalysis.alerts,
+      };
+    }
+
+    // Verificar si el usuario tiene 2FA habilitado
+    const has2FA = await this.twoFactorService.isTwoFactorEnabled(userId);
+
+    // Verificar si el dispositivo es confiable
+    const isDeviceTrusted = deviceFingerprint 
+      ? await this.deviceService.isDeviceTrusted(userId, deviceFingerprint)
+      : false;
+
+    // Si tiene 2FA habilitado y el dispositivo no es confiable, requerir 2FA
+    const requires2FA = has2FA && !isDeviceTrusted;
+
+    // Si es un dispositivo nuevo y el score de riesgo es alto, requerir trust
+    const isNewDevice = deviceFingerprint
+      ? await this.deviceService.isNewDevice(userId, deviceFingerprint)
+      : false;
+    const requiresDeviceTrust = isNewDevice && securityAnalysis.riskScore >= 40;
+
+    return {
+      allowed: true,
+      requires2FA,
+      requiresDeviceTrust,
+      riskScore: securityAnalysis.riskScore,
+      alerts: securityAnalysis.alerts,
+    };
+  }
+
+  /**
+   * Verificar código 2FA durante login
+   */
+  async verify2FACode(userId: string, code: string): Promise<boolean> {
+    return this.twoFactorService.verifyTOTP(userId, code) || 
+           this.twoFactorService.verifyBackupCode(userId, code);
   }
 
   /**
@@ -395,16 +488,13 @@ export class AuthService {
         role: user.role,
       };
 
-      // Generar nuevos tokens
-      const accessToken = this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_EXPIRATION') || '15m',
-      });
+      // Generar nuevos tokens con RS256
+      const accessToken = this.jwtService.sign(payload);
 
-      const refreshToken = this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d',
-      });
+      const refreshToken = this.jwtService.sign(
+        { ...payload, type: 'refresh' },
+        { expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d' }
+      );
 
       // Revocar el token antiguo y guardar el nuevo
       await this.refreshTokenModel.updateOne(
@@ -474,6 +564,18 @@ export class AuthService {
       }
 
       this.logger.log(`User logged out: ${userId}`);
+
+      // Registrar logout en auditoría
+      const user = await this.userModel.findById(userId);
+      if (user && session) {
+        await this.auditService.logLogout(
+          userId,
+          user.email,
+          session.ipAddress || 'unknown',
+          session.userAgent || 'unknown',
+          session._id.toString()
+        );
+      }
     } catch (error) {
       this.logger.error(`Error during logout: ${getErrorMessage(error)}`, getErrorStack(error));
       throw error;
@@ -508,8 +610,11 @@ export class AuthService {
       userAgent,
     });
 
-    // TODO: Enviar email con el token
-    // await this.emailService.sendVerificationEmail(email, token);
+    // Enviar email de verificación a través de la cola
+    const user = await this.userModel.findById(userId);
+    if (user) {
+      await this.emailQueueService.sendVerificationEmail(email, token, user.nombre || email);
+    }
 
     this.logger.log(`Email verification token created for user: ${userId}`);
     return token;
@@ -545,6 +650,43 @@ export class AuthService {
     );
 
     this.logger.log(`Email verified for user: ${verificationToken.userId}`);
+
+    // Registrar verificación en auditoría
+    const user = await this.userModel.findById(verificationToken.userId);
+    if (user) {
+      await this.auditService.logEmailVerification(
+        verificationToken.userId.toString(),
+        user.email,
+        verificationToken.ipAddress,
+        verificationToken.userAgent
+      );
+    }
+  }
+
+  /**
+   * Reenviar email de verificación
+   */
+  async resendVerificationEmail(userId: string, ipAddress: string, userAgent: string): Promise<void> {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException('El email ya está verificado');
+    }
+
+    // Invalidar tokens anteriores
+    await this.emailVerificationTokenModel.updateMany(
+      { userId, isUsed: false },
+      { $set: { isUsed: true, usedAt: new Date() } }
+    );
+
+    // Crear nuevo token y enviar email
+    await this.createEmailVerificationToken(userId, user.email, ipAddress, userAgent);
+
+    this.logger.log(`Verification email resent for user: ${userId}`);
   }
 
   /**
@@ -570,10 +712,18 @@ export class AuthService {
       userAgent,
     });
 
-    // TODO: Enviar email con el token
-    // await this.emailService.sendPasswordResetEmail(email, token);
+    // Enviar email de reset a través de la cola
+    await this.emailQueueService.sendPasswordResetEmail(email, token, user.nombre || email);
 
     this.logger.log(`Password reset requested for user: ${user.email}`);
+
+    // Registrar solicitud en auditoría
+    await this.auditService.logPasswordResetRequest(
+      user._id.toString(),
+      user.email,
+      ipAddress,
+      userAgent
+    );
   }
 
   /**
@@ -617,6 +767,25 @@ export class AuthService {
 
     // Revocar todas las sesiones y tokens del usuario
     await this.revokeAllUserSessions(resetToken.userId.toString());
+
+    // Enviar email de notificación de cambio de contraseña
+    const user = await this.userModel.findById(resetToken.userId);
+    if (user) {
+      await this.emailQueueService.sendPasswordChangedEmail(
+        user.email,
+        user.nombre || user.email,
+        resetToken.ipAddress || 'unknown'
+      );
+
+      // Registrar cambio de contraseña en auditoría
+      await this.auditService.logPasswordChange(
+        user._id.toString(),
+        user.email,
+        resetToken.ipAddress || 'unknown',
+        resetToken.userAgent || 'unknown',
+        'reset'
+      );
+    }
 
     this.logger.log(`Password reset for user: ${resetToken.userId}`);
   }

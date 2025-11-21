@@ -26,6 +26,15 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
+
+  @ApiProperty({
+    example: '123456',
+    description: 'Código de autenticación de dos factores (6 dígitos o código de respaldo)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  twoFactorCode?: string;
 }
 
 export class RefreshTokenDto {

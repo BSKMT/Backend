@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -36,6 +37,10 @@ async function bootstrap() {
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
   app.use(cookieParser(configService.get<string>('COOKIE_SECRET')));
+
+  // CSRF protection middleware
+  const csrfMiddleware = new CsrfMiddleware();
+  app.use((req: any, res: any, next: any) => csrfMiddleware.use(req, res, next));
 
   // CORS configuration
   const corsOrigin = configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000';

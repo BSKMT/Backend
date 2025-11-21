@@ -40,3 +40,8 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# JWT RSA Keys - NO COMPARTIR
+keys/
+*.key
+.env.keys.example
