@@ -146,7 +146,7 @@ export class SecurityService {
 
     // 5. Verificar si la cuenta ya está bloqueada
     const user = await this.userModel.findById(context.userId);
-    if (user?.isLocked) {
+    if (user?.lockUntil && user.lockUntil > new Date()) {
       return {
         allowed: false,
         riskScore: 100,
@@ -268,7 +268,6 @@ export class SecurityService {
       { _id: userId },
       {
         $set: {
-          isLocked: true,
           lockUntil,
         }
       }

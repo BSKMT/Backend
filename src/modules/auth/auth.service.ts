@@ -66,20 +66,18 @@ export class AuthService {
       }
 
       // Verificar si la cuenta está bloqueada
-      if (user.isLocked) {
-        const now = new Date();
-        if (user.lockUntil && user.lockUntil > now) {
-          const minutesLeft = Math.ceil((user.lockUntil.getTime() - now.getTime()) / 60000);
-          throw new UnauthorizedException(
-            `Cuenta bloqueada. Intente nuevamente en ${minutesLeft} minutos.`
-          );
-        } else {
-          // Desbloquear cuenta si ya pasó el tiempo
-          await this.userModel.updateOne(
-            { _id: user._id },
-            { $set: { isLocked: false, loginAttempts: 0, lockUntil: null } }
-          );
-        }
+      const now = new Date();
+      if (user.lockUntil && user.lockUntil > now) {
+        const minutesLeft = Math.ceil((user.lockUntil.getTime() - now.getTime()) / 60000);
+        throw new UnauthorizedException(
+          `Cuenta bloqueada. Intente nuevamente en ${minutesLeft} minutos.`
+        );
+      } else if (user.lockUntil) {
+        // Desbloquear cuenta si ya pasó el tiempo
+        await this.userModel.updateOne(
+          { _id: user._id },
+          { $set: { loginAttempts: 0, lockUntil: null } }
+        );
       }
 
       // Verificar contraseña
@@ -123,7 +121,7 @@ export class AuthService {
       const lockUntil = new Date(Date.now() + lockDuration * 1000);
       await this.userModel.updateOne(
         { _id: user._id },
-        { $set: { loginAttempts, isLocked: true, lockUntil } }
+        { $set: { loginAttempts, lockUntil } }
       );
       this.logger.warn(`Account locked for user: ${user.email}`);
     } else {
@@ -753,7 +751,6 @@ export class AuthService {
         $set: { 
           password: hashedPassword,
           loginAttempts: 0,
-          isLocked: false,
           lockUntil: null,
         } 
       }
