@@ -229,9 +229,6 @@ export class User {
   @Prop()
   lockUntil?: Date;
 
-  @Prop({ default: false })
-  isLocked: boolean;
-
   // Términos y condiciones
   @Prop({ default: false, required: true })
   acceptedTerms: boolean;
@@ -271,7 +268,6 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ membershipType: 1 });
 UserSchema.index({ isActive: 1 });
 UserSchema.index({ city: 1 });
-UserSchema.index({ createdAt: -1 });
 UserSchema.index({ lastLogin: -1 });
 UserSchema.index({ lastActivity: -1 });
 UserSchema.index({ lockUntil: 1 }, { expireAfterSeconds: 0 });
