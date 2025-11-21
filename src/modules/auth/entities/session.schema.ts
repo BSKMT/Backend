@@ -29,7 +29,7 @@ export class Session {
   @Prop()
   deviceName?: string;
 
-  @Prop()
+  @Prop({ type: Object })
   location?: {
     country?: string;
     city?: string;

@@ -29,7 +29,7 @@ export class AuditLog {
   @Prop()
   errorMessage?: string;
 
-  @Prop({ index: true })
+  @Prop()
   timestamp: Date;
 
   @Prop()

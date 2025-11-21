@@ -61,5 +61,4 @@ export const TrustedDeviceSchema = SchemaFactory.createForClass(TrustedDevice);
 
 // Índices
 TrustedDeviceSchema.index({ userId: 1, deviceFingerprint: 1 });
-TrustedDeviceSchema.index({ rememberToken: 1 });
 TrustedDeviceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL automático
