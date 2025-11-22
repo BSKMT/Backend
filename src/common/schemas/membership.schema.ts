@@ -161,8 +161,8 @@ export class Membership {
 
 export const MembershipSchema = SchemaFactory.createForClass(Membership);
 
-// Índices
-MembershipSchema.index({ slug: 1 });
+// Índices (slug ya tiene unique: true, no duplicar)
+// MembershipSchema.index({ slug: 1 }); // REMOVED: duplicate (unique: true already creates index)
 MembershipSchema.index({ status: 1 });
 MembershipSchema.index({ isActive: 1 });
 MembershipSchema.index({ 'level.tier': 1 });

@@ -29,11 +29,11 @@ export class PasswordResetToken {
 
 export const PasswordResetTokenSchema = SchemaFactory.createForClass(PasswordResetToken);
 
-// Índices
-PasswordResetTokenSchema.index({ token: 1 });
+// Índices (token ya tiene unique: true, no duplicar)
+// PasswordResetTokenSchema.index({ token: 1 }); // REMOVED: duplicate (unique: true already creates index)
 PasswordResetTokenSchema.index({ userId: 1 });
-PasswordResetTokenSchema.index({ expiresAt: 1 });
+// PasswordResetTokenSchema.index({ expiresAt: 1 }); // REMOVED: duplicate (TTL index below)
 PasswordResetTokenSchema.index({ isUsed: 1 });
 
-// TTL index
+// TTL index para eliminación automática de tokens expirados
 PasswordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

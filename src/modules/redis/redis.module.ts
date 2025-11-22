@@ -53,84 +53,109 @@ let redisClientInstance: any = null;
           // Parse URL to determine if it uses SSL
           const useSSL = redisUrl.startsWith('rediss://');
           
+          console.log(`🔌 Connecting to Redis (SSL: ${useSSL ? 'enabled' : 'disabled'})...`);
+          
           // For Redis Cloud with SSL
           if (useSSL) {
             client = new Redis(redisUrl, {
-              family: 6, // Force IPv6 if needed, or use 4 for IPv4, 0 for both
+              family: 0, // Try both IPv4 and IPv6 (0 = auto, 4 = IPv4 only, 6 = IPv6 only)
               tls: {
                 // CRITICAL: For Redis Cloud, we need proper TLS configuration
                 rejectUnauthorized: false, // Accept self-signed certificates from Redis Cloud
+                servername: new URL(redisUrl).hostname, // Proper SNI for TLS
               },
               // SERVERLESS CRITICAL SETTINGS
               maxRetriesPerRequest: null, // CRITICAL: null = retry indefinitely, prevents "max retries" errors in serverless
               enableOfflineQueue: false, // Don't queue commands when disconnected
               enableReadyCheck: false, // Skip PING check on connect (faster cold starts)
               lazyConnect: false, // Connect immediately
+              autoResubscribe: false, // Don't auto-resubscribe to channels (not needed for cache)
+              autoResendUnfulfilledCommands: false, // Don't resend commands on reconnect
               
               // Connection pooling
-              connectTimeout: 10000, // 10 seconds
+              connectTimeout: 15000, // 15 seconds (increased for DNS resolution)
+              commandTimeout: 5000, // 5 seconds per command
               keepAlive: 0, // Disable TCP keepalive in serverless (connections are short-lived)
               
-              // Retry strategy
+              // Retry strategy with exponential backoff
               retryStrategy: (times: number) => {
-                if (times > 5) {
-                  console.error('❌ Redis connection failed after 5 retries');
+                if (times > 3) {
+                  console.error('❌ Redis connection failed after 3 retries - giving up');
                   return null; // Stop retrying
                 }
-                const delay = Math.min(times * 200, 2000);
-                console.log(`🔄 Redis retry attempt ${times} in ${delay}ms`);
+                const delay = Math.min(times * 500, 2000); // 500ms, 1000ms, 2000ms
+                console.log(`🔄 Redis retry attempt ${times}/${3} in ${delay}ms`);
                 return delay;
               },
               
-              // Reconnect on error
+              // Reconnect on error (only for recoverable errors)
               reconnectOnError: (err) => {
-                console.log('🔄 Redis reconnectOnError triggered:', err.message);
-                // Reconnect on specific errors
-                return err.message.includes('READONLY') || err.message.includes('ECONNREFUSED');
+                const recoverableErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET'];
+                const shouldReconnect = recoverableErrors.some(e => err.message.includes(e));
+                if (shouldReconnect) {
+                  console.log('🔄 Redis reconnectOnError triggered:', err.message);
+                }
+                return shouldReconnect;
               },
             });
           } else {
             // Standard Redis URL without SSL
             client = new Redis(redisUrl, {
+              family: 0, // Try both IPv4 and IPv6
               maxRetriesPerRequest: null, // CRITICAL for serverless
               enableOfflineQueue: false,
               enableReadyCheck: false,
               lazyConnect: false,
-              connectTimeout: 10000,
+              autoResubscribe: false,
+              autoResendUnfulfilledCommands: false,
+              connectTimeout: 15000,
+              commandTimeout: 5000,
               keepAlive: 0,
               retryStrategy: (times: number) => {
-                if (times > 5) {
-                  console.error('❌ Redis connection failed after 5 retries');
+                if (times > 3) {
+                  console.error('❌ Redis connection failed after 3 retries - giving up');
                   return null;
                 }
-                return Math.min(times * 200, 2000);
+                const delay = Math.min(times * 500, 2000);
+                console.log(`🔄 Redis retry attempt ${times}/${3} in ${delay}ms`);
+                return delay;
               },
             });
           }
         } else {
           // Use individual host/port/password configuration
+          console.log(`🔌 Connecting to Redis at ${redisHost}:${configService.get<number>('REDIS_PORT') || 6379}...`);
           client = new Redis({
             host: redisHost || 'localhost',
             port: configService.get<number>('REDIS_PORT') || 6379,
             password: configService.get<string>('REDIS_PASSWORD') || undefined,
             db: configService.get<number>('REDIS_DB') || 0,
+            family: 0, // Try both IPv4 and IPv6
             maxRetriesPerRequest: null, // CRITICAL for serverless
             enableOfflineQueue: false,
             enableReadyCheck: false,
             lazyConnect: false,
-            connectTimeout: 5000,
+            autoResubscribe: false,
+            autoResendUnfulfilledCommands: false,
+            connectTimeout: 10000,
+            commandTimeout: 5000,
             keepAlive: 0,
             retryStrategy: (times: number) => {
-              if (times > 5) {
-                console.error('❌ Redis connection failed after 5 retries');
+              if (times > 3) {
+                console.error('❌ Redis connection failed after 3 retries - giving up');
                 return null;
               }
-              return Math.min(times * 200, 2000);
+              const delay = Math.min(times * 500, 2000);
+              console.log(`🔄 Redis retry attempt ${times}/${3} in ${delay}ms`);
+              return delay;
             },
           });
         }
 
-        // Event handlers
+        // Event handlers with debouncing to prevent log spam
+        let lastErrorTime = 0;
+        const ERROR_LOG_THROTTLE = 5000; // Only log errors every 5 seconds
+        
         client.on('connect', () => {
           console.log('✅ Redis connected successfully');
         });
@@ -140,9 +165,17 @@ let redisClientInstance: any = null;
         });
 
         client.on('error', (err: Error) => {
-          // Don't spam logs with connection errors
-          if (!err.message.includes('ECONNREFUSED')) {
-            console.error('❌ Redis error:', err.message);
+          const now = Date.now();
+          // Throttle error logging to prevent spam
+          if (now - lastErrorTime > ERROR_LOG_THROTTLE) {
+            // Filter out common transient errors that are handled by retry logic
+            const ignoredErrors = ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET'];
+            const shouldLog = !ignoredErrors.some(e => err.message.includes(e));
+            
+            if (shouldLog) {
+              console.error('❌ Redis error:', err.message);
+              lastErrorTime = now;
+            }
           }
         });
 
@@ -152,6 +185,10 @@ let redisClientInstance: any = null;
 
         client.on('reconnecting', (delay: number) => {
           console.log(`🔄 Redis reconnecting in ${delay}ms...`);
+        });
+        
+        client.on('end', () => {
+          console.log('📴 Redis connection ended');
         });
 
         // Store the client instance as singleton

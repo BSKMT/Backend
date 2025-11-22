@@ -38,10 +38,10 @@ export class RefreshToken {
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);
 
-// Índices
-RefreshTokenSchema.index({ token: 1 });
+// Índices (token ya tiene unique: true, no duplicar)
+// RefreshTokenSchema.index({ token: 1 }); // REMOVED: duplicate (unique: true already creates index)
 RefreshTokenSchema.index({ userId: 1 });
-RefreshTokenSchema.index({ expiresAt: 1 });
+// RefreshTokenSchema.index({ expiresAt: 1 }); // REMOVED: duplicate (TTL index below)
 RefreshTokenSchema.index({ isRevoked: 1 });
 
 // TTL index para eliminación automática de tokens expirados

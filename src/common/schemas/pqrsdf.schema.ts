@@ -201,8 +201,8 @@ export class PQRSDF {
 
 export const PQRSDFSchema = SchemaFactory.createForClass(PQRSDF);
 
-// Índices
-PQRSDFSchema.index({ numeroSolicitud: 1 });
+// Índices (numeroSolicitud ya tiene unique: true, no duplicar)
+// PQRSDFSchema.index({ numeroSolicitud: 1 }); // REMOVED: duplicate (unique: true already creates index)
 PQRSDFSchema.index({ usuarioId: 1 });
 PQRSDFSchema.index({ categoria: 1 });
 PQRSDFSchema.index({ estado: 1 });

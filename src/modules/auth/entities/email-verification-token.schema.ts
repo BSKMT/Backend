@@ -32,12 +32,12 @@ export class EmailVerificationToken {
 
 export const EmailVerificationTokenSchema = SchemaFactory.createForClass(EmailVerificationToken);
 
-// Índices
-EmailVerificationTokenSchema.index({ token: 1 });
+// Índices (token ya tiene unique: true, no duplicar)
+// EmailVerificationTokenSchema.index({ token: 1 }); // REMOVED: duplicate (unique: true already creates index)
 EmailVerificationTokenSchema.index({ userId: 1 });
 EmailVerificationTokenSchema.index({ email: 1 });
-EmailVerificationTokenSchema.index({ expiresAt: 1 });
+// EmailVerificationTokenSchema.index({ expiresAt: 1 }); // REMOVED: duplicate (TTL index below)
 EmailVerificationTokenSchema.index({ isUsed: 1 });
 
-// TTL index
+// TTL index para eliminación automática de tokens expirados
 EmailVerificationTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
