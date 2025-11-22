@@ -26,7 +26,10 @@ import * as redisStore from 'cache-manager-ioredis';
         // Use REDIS_URL if provided (with proper SSL configuration)
         if (redisUrl) {
           const useSSL = redisUrl.startsWith('rediss://');
+          // Debug: Show URL format (hide password for security)
+          const debugUrl = redisUrl.replace(/:([^:@]+)@/, ':****@');
           console.log(`✅ Redis cache enabled - using REDIS_URL (SSL: ${useSSL})`);
+          console.log(`🔍 DEBUG: URL format: ${debugUrl}`);
           
           // Parse Redis URL to get connection details
           // cache-manager-ioredis doesn't parse URLs correctly, so we must extract manually
