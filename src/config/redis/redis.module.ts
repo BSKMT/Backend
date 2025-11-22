@@ -39,15 +39,18 @@ import * as redisStore from 'cache-manager-ioredis';
                 servername: new URL(redisUrl).hostname,
               },
               maxRetriesPerRequest: null,
-              enableOfflineQueue: false,
+              enableOfflineQueue: true, // CHANGED: Allow cache operations to queue during connection
               enableReadyCheck: false,
+              lazyConnect: false,
               connectTimeout: 15000,
               retryStrategy: (times: number) => {
                 if (times > 3) {
                   console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
                   return undefined;
                 }
-                return Math.min(times * 500, 2000);
+                const delay = Math.min(times * 500, 2000);
+                console.log(`🔄 Cache Redis: Retry attempt ${times}/3 in ${delay}ms`);
+                return delay;
               },
             };
           } else {
@@ -57,13 +60,17 @@ import * as redisStore from 'cache-manager-ioredis';
               url: redisUrl,
               ttl: 60 * 5,
               maxRetriesPerRequest: null,
+              enableOfflineQueue: true, // CHANGED: Allow cache operations to queue during connection
               enableReadyCheck: false,
+              lazyConnect: false,
               retryStrategy: (times: number) => {
                 if (times > 3) {
                   console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
                   return undefined;
                 }
-                return Math.min(times * 500, 2000);
+                const delay = Math.min(times * 500, 2000);
+                console.log(`🔄 Cache Redis: Retry attempt ${times}/3 in ${delay}ms`);
+                return delay;
               },
             };
           }
@@ -83,14 +90,18 @@ import * as redisStore from 'cache-manager-ioredis';
             password: redisPassword,
             ttl: 60 * 5,
             maxRetriesPerRequest: null,
+            enableOfflineQueue: true, // CHANGED: Allow cache operations to queue during connection
             enableReadyCheck: false,
+            lazyConnect: false,
             connectTimeout: 10000,
             retryStrategy: (times: number) => {
               if (times > 3) {
                 console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
                 return undefined;
               }
-              return Math.min(times * 500, 2000);
+              const delay = Math.min(times * 500, 2000);
+              console.log(`🔄 Cache Redis: Retry attempt ${times}/3 in ${delay}ms`);
+              return delay;
             },
           };
         }

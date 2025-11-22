@@ -31,53 +31,60 @@ import { EmailQueueService } from './email-queue.service';
           const useSSL = redisUrl.startsWith('rediss://');
           console.log(`✅ Bull Queue enabled - using REDIS_URL (SSL: ${useSSL})`);
           
+          // Parse Redis URL to get connection details
+          const parsedUrl = new URL(redisUrl);
+          const redisConfig: any = {
+            host: parsedUrl.hostname,
+            port: parseInt(parsedUrl.port) || (useSSL ? 6380 : 6379),
+          };
+
+          // Add password if present
+          if (parsedUrl.password) {
+            redisConfig.password = parsedUrl.password;
+          }
+
+          // Add username if present (for ACL)
+          if (parsedUrl.username && parsedUrl.username !== 'default') {
+            redisConfig.username = parsedUrl.username;
+          }
+          
           // For SSL connections (Redis Cloud, Upstash)
           if (useSSL) {
-            return {
-              redis: {
-                url: redisUrl,
-                tls: {
-                  rejectUnauthorized: false, // Accept Redis Cloud certificates
-                  servername: new URL(redisUrl).hostname, // Proper SNI
-                },
-                maxRetriesPerRequest: null, // CRITICAL for serverless
-                enableOfflineQueue: false,
-                enableReadyCheck: false,
-                connectTimeout: 15000,
-                commandTimeout: 5000,
-                retryStrategy: (times: number) => {
-                  if (times > 3) {
-                    console.error('❌ Bull Queue: Redis connection failed after 3 retries');
-                    return null;
-                  }
-                  return Math.min(times * 500, 2000);
-                },
-              },
-              defaultJobOptions: {
-                attempts: 3,
-                backoff: {
-                  type: 'exponential',
-                  delay: 2000,
-                },
-                removeOnComplete: true,
-                removeOnFail: false,
-              },
-            };
-          } else {
-            // Non-SSL Redis URL
-            return {
-              redis: redisUrl,
-              defaultJobOptions: {
-                attempts: 3,
-                backoff: {
-                  type: 'exponential',
-                  delay: 2000,
-                },
-                removeOnComplete: true,
-                removeOnFail: false,
-              },
+            redisConfig.tls = {
+              rejectUnauthorized: false, // Accept Redis Cloud certificates
+              servername: parsedUrl.hostname, // Proper SNI
             };
           }
+
+          // Add serverless-optimized settings
+          redisConfig.maxRetriesPerRequest = null; // CRITICAL for serverless
+          redisConfig.enableOfflineQueue = true; // CHANGED: Allow queueing while connecting
+          redisConfig.enableReadyCheck = false;
+          redisConfig.lazyConnect = false; // Connect immediately
+          redisConfig.connectTimeout = 15000;
+          redisConfig.commandTimeout = 5000;
+          redisConfig.retryStrategy = (times: number) => {
+            if (times > 3) {
+              console.error('❌ Bull Queue: Redis connection failed after 3 retries');
+              return null;
+            }
+            const delay = Math.min(times * 500, 2000);
+            console.log(`🔄 Bull Queue: Retry attempt ${times}/3 in ${delay}ms`);
+            return delay;
+          };
+
+          return {
+            redis: redisConfig,
+            defaultJobOptions: {
+              attempts: 3,
+              backoff: {
+                type: 'exponential',
+                delay: 2000,
+              },
+              removeOnComplete: true,
+              removeOnFail: false,
+            },
+          };
         }
         
         // Fallback to host/port configuration
@@ -89,14 +96,18 @@ import { EmailQueueService } from './email-queue.service';
             password: configService.get<string>('REDIS_PASSWORD') || undefined,
             db: configService.get<number>('REDIS_DB') || 0,
             maxRetriesPerRequest: null,
+            enableOfflineQueue: true, // Allow queueing while connecting
             enableReadyCheck: false,
+            lazyConnect: false,
             connectTimeout: 10000,
             retryStrategy: (times: number) => {
               if (times > 3) {
                 console.error('❌ Bull Queue: Redis connection failed after 3 retries');
                 return null;
               }
-              return Math.min(times * 500, 2000);
+              const delay = Math.min(times * 500, 2000);
+              console.log(`🔄 Bull Queue: Retry attempt ${times}/3 in ${delay}ms`);
+              return delay;
             },
           },
           defaultJobOptions: {
