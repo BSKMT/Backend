@@ -20,7 +20,11 @@ export class RedisService implements OnModuleDestroy {
   constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) {}
 
   async onModuleDestroy() {
-    await this.redisClient.quit();
+    try {
+      await this.redisClient.quit();
+    } catch (error) {
+      // Ignore errors on shutdown (mock client)
+    }
   }
 
   /**
