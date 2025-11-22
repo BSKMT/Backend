@@ -52,8 +52,9 @@ let redisClientInstance: any = null;
         if (redisUrl) {
           // Parse URL to determine if it uses SSL
           const useSSL = redisUrl.startsWith('rediss://');
+          const parsedUrl = new URL(redisUrl);
           
-          console.log(`🔌 Connecting to Redis (SSL: ${useSSL ? 'enabled' : 'disabled'})...`);
+          console.log(`🔌 Session Redis: Connecting to ${parsedUrl.hostname}:${parsedUrl.port || '6379'} (SSL: ${useSSL ? 'enabled' : 'disabled'})...`);
           
           // For Redis Cloud with SSL
           if (useSSL) {

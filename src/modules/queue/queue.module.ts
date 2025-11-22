@@ -33,9 +33,19 @@ import { EmailQueueService } from './email-queue.service';
           
           // Parse Redis URL to get connection details
           const parsedUrl = new URL(redisUrl);
+          
+          // Get port from URL, or use default (6379 for both SSL and non-SSL)
+          // Redis Cloud typically uses port 6379 even for SSL (rediss://)
+          let port = 6379;
+          if (parsedUrl.port) {
+            port = parseInt(parsedUrl.port, 10);
+          }
+          
+          console.log(`🔌 Bull Queue: Connecting to ${parsedUrl.hostname}:${port} (SSL: ${useSSL})`);
+          
           const redisConfig: any = {
             host: parsedUrl.hostname,
-            port: parseInt(parsedUrl.port) || (useSSL ? 6380 : 6379),
+            port: port,
           };
 
           // Add password if present

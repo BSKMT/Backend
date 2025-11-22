@@ -31,10 +31,20 @@ import * as redisStore from 'cache-manager-ioredis';
           // Parse Redis URL to get connection details
           // cache-manager-ioredis doesn't parse URLs correctly, so we must extract manually
           const parsedUrl = new URL(redisUrl);
+          
+          // Get port from URL, or use default (6379 for both SSL and non-SSL)
+          // Redis Cloud typically uses port 6379 even for SSL (rediss://)
+          let port = 6379;
+          if (parsedUrl.port) {
+            port = parseInt(parsedUrl.port, 10);
+          }
+          
+          console.log(`🔌 Cache Redis: Connecting to ${parsedUrl.hostname}:${port} (SSL: ${useSSL})`);
+          
           const cacheConfig: any = {
             store: redisStore as any,
             host: parsedUrl.hostname,
-            port: parseInt(parsedUrl.port) || (useSSL ? 6380 : 6379),
+            port: port,
             ttl: 60 * 5, // 5 minutes default TTL
             maxRetriesPerRequest: null,
             enableOfflineQueue: true, // Allow cache operations to queue during connection
