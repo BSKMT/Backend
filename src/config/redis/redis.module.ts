@@ -23,43 +23,81 @@ import * as redisStore from 'cache-manager-ioredis';
           };
         }
 
-        // Use REDIS_URL if provided (e.g., from Upstash)
+        // Use REDIS_URL if provided (with proper SSL configuration)
         if (redisUrl) {
-          console.log('✅ Redis cache enabled - using REDIS_URL');
+          const useSSL = redisUrl.startsWith('rediss://');
+          console.log(`✅ Redis cache enabled - using REDIS_URL (SSL: ${useSSL})`);
+          
+          // For SSL connections
+          if (useSSL) {
+            return {
+              store: redisStore as any,
+              url: redisUrl,
+              ttl: 60 * 5, // 5 minutes default TTL
+              tls: {
+                rejectUnauthorized: false,
+                servername: new URL(redisUrl).hostname,
+              },
+              maxRetriesPerRequest: null,
+              enableOfflineQueue: false,
+              enableReadyCheck: false,
+              connectTimeout: 15000,
+              retryStrategy: (times: number) => {
+                if (times > 3) {
+                  console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
+                  return undefined;
+                }
+                return Math.min(times * 500, 2000);
+              },
+            };
+          } else {
+            // Non-SSL URL
+            return {
+              store: redisStore as any,
+              url: redisUrl,
+              ttl: 60 * 5,
+              maxRetriesPerRequest: null,
+              enableReadyCheck: false,
+              retryStrategy: (times: number) => {
+                if (times > 3) {
+                  console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
+                  return undefined;
+                }
+                return Math.min(times * 500, 2000);
+              },
+            };
+          }
+        }
+
+        // Fallback to host/port configuration (ONLY if REDIS_URL is not set)
+        if (redisHost) {
+          const redisPort = configService.get<number>('REDIS_PORT') || 6379;
+          const redisPassword = configService.get<string>('REDIS_PASSWORD');
+
+          console.log(`✅ Redis cache enabled - connecting to ${redisHost}:${redisPort}`);
+
           return {
             store: redisStore as any,
-            url: redisUrl,
-            ttl: 60 * 5, // 5 minutes default TTL
+            host: redisHost,
+            port: redisPort,
+            password: redisPassword,
+            ttl: 60 * 5,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            connectTimeout: 10000,
             retryStrategy: (times: number) => {
               if (times > 3) {
-                console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
-                return undefined; // stop retrying
+                console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
+                return undefined;
               }
-              return Math.min(times * 100, 3000);
+              return Math.min(times * 500, 2000);
             },
           };
         }
 
-        // Fallback to host/port configuration
-        const redisPort = configService.get<number>('REDIS_PORT') || 6379;
-        const redisPassword = configService.get<string>('REDIS_PASSWORD');
-
-        console.log(`✅ Redis cache enabled - connecting to ${redisHost}:${redisPort}`);
-
-        return {
-          store: redisStore as any,
-          host: redisHost,
-          port: redisPort,
-          password: redisPassword,
-          ttl: 60 * 5, // 5 minutes default TTL
-          retryStrategy: (times: number) => {
-            if (times > 3) {
-              console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
-              return undefined; // stop retrying
-            }
-            return Math.min(times * 100, 3000);
-          },
-        };
+        // Should never reach here (caught by shouldUseRedis check above)
+        console.warn('⚠️  Unexpected: Redis config reached fallback');
+        return { ttl: 60 * 5 };
       },
       inject: [ConfigService],
       isGlobal: true,
