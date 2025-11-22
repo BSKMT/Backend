@@ -30,7 +30,7 @@ Password: Tu_Password_Aquí
 
 ## Paso 3: Construir URL
 
-Combina la información así:
+### Opción A: CON SSL (Recomendado) ⭐
 
 ```
 rediss://default:PASSWORD@ENDPOINT:PORT
@@ -41,7 +41,18 @@ rediss://default:PASSWORD@ENDPOINT:PORT
 rediss://default:AbC123@redis-12345.c123.us-east-1-1.ec2.cloud.redislabs.com:12345
 ```
 
-> ⚠️ Usa `rediss://` (con doble 's') para SSL seguro
+### Opción B: SIN SSL (Si tienes problemas de conexión)
+
+```
+redis://default:PASSWORD@ENDPOINT:PORT
+```
+
+**Ejemplo:**
+```
+redis://default:AbC123@redis-12345.c123.us-east-1-1.ec2.cloud.redislabs.com:12345
+```
+
+> 💡 **Prueba primero con `rediss://` (con SSL)**. Si ves errores de SSL, usa `redis://` (sin SSL)
 
 ---
 

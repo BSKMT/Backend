@@ -33,28 +33,70 @@ import { RedisService } from './redis.service';
             on: () => {},
           };
         }
+          // Use REDIS_URL if provided (e.g., from Upstash, Redis Cloud)
+        let client: any;
         
-        // Use REDIS_URL if provided (e.g., from Upstash, Redis Cloud)
-        const redisConfig = redisUrl ? redisUrl : {
-          host: redisHost || 'localhost',
-          port: configService.get<number>('REDIS_PORT') || 6379,
-          password: configService.get<string>('REDIS_PASSWORD') || undefined,
-          db: configService.get<number>('REDIS_DB') || 0,
-          retryStrategy: (times: number) => {
-            if (times > 3) {
-              console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
-              return undefined; // Stop retrying
-            }
-            const delay = Math.min(times * 50, 2000);
-            return delay;
-          },
-          maxRetriesPerRequest: 3,
-          enableReadyCheck: true,
-          lazyConnect: true, // Don't connect immediately in serverless
-          connectTimeout: 5000, // 5 second timeout
-        };
-
-        const client = new Redis(redisConfig);
+        if (redisUrl) {
+          // Parse URL to determine if it uses SSL
+          const useSSL = redisUrl.startsWith('rediss://');
+            // For Redis Cloud with SSL
+          if (useSSL) {
+            client = new Redis(redisUrl, {
+              tls: {
+                // Redis Cloud uses valid certificates, but we need to configure properly
+                rejectUnauthorized: true, // Verify SSL certificates
+                checkServerIdentity: () => undefined, // Skip hostname verification for Redis Cloud
+              },
+              retryStrategy: (times: number) => {
+                if (times > 3) {
+                  console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
+                  return undefined;
+                }
+                return Math.min(times * 100, 3000);
+              },
+              maxRetriesPerRequest: 3,
+              enableReadyCheck: false, // Better for serverless
+              lazyConnect: true,
+              connectTimeout: 10000, // 10 seconds for cloud connections
+              keepAlive: 30000, // Keep connection alive
+            });
+          } else {
+            // Standard Redis URL without SSL
+            client = new Redis(redisUrl, {
+              retryStrategy: (times: number) => {
+                if (times > 3) {
+                  console.error('❌ Redis connection failed after 3 retries');
+                  return undefined;
+                }
+                return Math.min(times * 100, 3000);
+              },
+              maxRetriesPerRequest: 3,
+              enableReadyCheck: false,
+              lazyConnect: true,
+              connectTimeout: 10000,
+            });
+          }
+        } else {
+          // Use individual host/port/password configuration
+          client = new Redis({
+            host: redisHost || 'localhost',
+            port: configService.get<number>('REDIS_PORT') || 6379,
+            password: configService.get<string>('REDIS_PASSWORD') || undefined,
+            db: configService.get<number>('REDIS_DB') || 0,
+            retryStrategy: (times: number) => {
+              if (times > 3) {
+                console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
+                return undefined;
+              }
+              const delay = Math.min(times * 50, 2000);
+              return delay;
+            },
+            maxRetriesPerRequest: 3,
+            enableReadyCheck: true,
+            lazyConnect: true,
+            connectTimeout: 5000,
+          });
+        }
 
         client.on('connect', () => {
           console.log('✅ Redis connected successfully');
