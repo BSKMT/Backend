@@ -2,6 +2,9 @@ import { Module, Global } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisService } from './redis.service';
 
+// Singleton Redis client to prevent connection pool exhaustion
+let redisClientInstance: any = null;
+
 @Global()
 @Module({
   imports: [ConfigModule],
@@ -9,6 +12,12 @@ import { RedisService } from './redis.service';
     {
       provide: 'REDIS_CLIENT',
       useFactory: async (configService: ConfigService) => {
+        // Return existing client if already created (singleton pattern)
+        if (redisClientInstance) {
+          console.log('♻️  Reusing existing Redis client');
+          return redisClientInstance;
+        }
+
         const Redis = require('ioredis');
         
         // Check if Redis is configured
@@ -21,7 +30,7 @@ import { RedisService } from './redis.service';
           console.warn('⚠️  For production, configure REDIS_URL in environment variables');
           
           // Return a mock Redis client that doesn't actually connect
-          return {
+          const mockClient = {
             setex: async () => {},
             get: async () => null,
             del: async () => 0,
@@ -31,49 +40,71 @@ import { RedisService } from './redis.service';
             info: async () => 'Mock Redis - Not Connected',
             quit: async () => {},
             on: () => {},
+            status: 'ready',
           };
+          redisClientInstance = mockClient;
+          return mockClient;
         }
-          // Use REDIS_URL if provided (e.g., from Upstash, Redis Cloud)
+
+        // Use REDIS_URL if provided (e.g., from Upstash, Redis Cloud)
         let client: any;
         
         if (redisUrl) {
           // Parse URL to determine if it uses SSL
           const useSSL = redisUrl.startsWith('rediss://');
-            // For Redis Cloud with SSL
+          
+          // For Redis Cloud with SSL
           if (useSSL) {
             client = new Redis(redisUrl, {
+              family: 6, // Force IPv6 if needed, or use 4 for IPv4, 0 for both
               tls: {
-                // Redis Cloud uses valid certificates, but we need to configure properly
-                rejectUnauthorized: true, // Verify SSL certificates
-                checkServerIdentity: () => undefined, // Skip hostname verification for Redis Cloud
+                // CRITICAL: For Redis Cloud, we need proper TLS configuration
+                rejectUnauthorized: false, // Accept self-signed certificates from Redis Cloud
               },
+              // SERVERLESS CRITICAL SETTINGS
+              maxRetriesPerRequest: null, // CRITICAL: null = retry indefinitely, prevents "max retries" errors in serverless
+              enableOfflineQueue: false, // Don't queue commands when disconnected
+              enableReadyCheck: false, // Skip PING check on connect (faster cold starts)
+              lazyConnect: false, // Connect immediately
+              
+              // Connection pooling
+              connectTimeout: 10000, // 10 seconds
+              keepAlive: 0, // Disable TCP keepalive in serverless (connections are short-lived)
+              
+              // Retry strategy
               retryStrategy: (times: number) => {
-                if (times > 3) {
-                  console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
-                  return undefined;
+                if (times > 5) {
+                  console.error('❌ Redis connection failed after 5 retries');
+                  return null; // Stop retrying
                 }
-                return Math.min(times * 100, 3000);
+                const delay = Math.min(times * 200, 2000);
+                console.log(`🔄 Redis retry attempt ${times} in ${delay}ms`);
+                return delay;
               },
-              maxRetriesPerRequest: 3,
-              enableReadyCheck: false, // Better for serverless
-              lazyConnect: true,
-              connectTimeout: 10000, // 10 seconds for cloud connections
-              keepAlive: 30000, // Keep connection alive
+              
+              // Reconnect on error
+              reconnectOnError: (err) => {
+                console.log('🔄 Redis reconnectOnError triggered:', err.message);
+                // Reconnect on specific errors
+                return err.message.includes('READONLY') || err.message.includes('ECONNREFUSED');
+              },
             });
           } else {
             // Standard Redis URL without SSL
             client = new Redis(redisUrl, {
-              retryStrategy: (times: number) => {
-                if (times > 3) {
-                  console.error('❌ Redis connection failed after 3 retries');
-                  return undefined;
-                }
-                return Math.min(times * 100, 3000);
-              },
-              maxRetriesPerRequest: 3,
+              maxRetriesPerRequest: null, // CRITICAL for serverless
+              enableOfflineQueue: false,
               enableReadyCheck: false,
-              lazyConnect: true,
+              lazyConnect: false,
               connectTimeout: 10000,
+              keepAlive: 0,
+              retryStrategy: (times: number) => {
+                if (times > 5) {
+                  console.error('❌ Redis connection failed after 5 retries');
+                  return null;
+                }
+                return Math.min(times * 200, 2000);
+              },
             });
           }
         } else {
@@ -83,40 +114,48 @@ import { RedisService } from './redis.service';
             port: configService.get<number>('REDIS_PORT') || 6379,
             password: configService.get<string>('REDIS_PASSWORD') || undefined,
             db: configService.get<number>('REDIS_DB') || 0,
-            retryStrategy: (times: number) => {
-              if (times > 3) {
-                console.error('❌ Redis connection failed after 3 retries, using in-memory cache');
-                return undefined;
-              }
-              const delay = Math.min(times * 50, 2000);
-              return delay;
-            },
-            maxRetriesPerRequest: 3,
-            enableReadyCheck: true,
-            lazyConnect: true,
+            maxRetriesPerRequest: null, // CRITICAL for serverless
+            enableOfflineQueue: false,
+            enableReadyCheck: false,
+            lazyConnect: false,
             connectTimeout: 5000,
+            keepAlive: 0,
+            retryStrategy: (times: number) => {
+              if (times > 5) {
+                console.error('❌ Redis connection failed after 5 retries');
+                return null;
+              }
+              return Math.min(times * 200, 2000);
+            },
           });
         }
 
+        // Event handlers
         client.on('connect', () => {
           console.log('✅ Redis connected successfully');
         });
 
+        client.on('ready', () => {
+          console.log('✅ Redis ready for commands');
+        });
+
         client.on('error', (err: Error) => {
-          console.error('❌ Redis connection error:', err.message);
+          // Don't spam logs with connection errors
+          if (!err.message.includes('ECONNREFUSED')) {
+            console.error('❌ Redis error:', err.message);
+          }
         });
 
-        client.on('reconnecting', () => {
-          console.log('🔄 Redis reconnecting...');
+        client.on('close', () => {
+          console.log('⚠️  Redis connection closed');
         });
 
-        // Attempt to connect
-        try {
-          await client.connect();
-        } catch (error) {
-          console.error('❌ Redis connection failed:', error instanceof Error ? error.message : 'Unknown error');
-          console.warn('⚠️  Continuing without Redis - some features may be limited');
-        }
+        client.on('reconnecting', (delay: number) => {
+          console.log(`🔄 Redis reconnecting in ${delay}ms...`);
+        });
+
+        // Store the client instance as singleton
+        redisClientInstance = client;
 
         return client;
       },
@@ -127,3 +166,16 @@ import { RedisService } from './redis.service';
   exports: ['REDIS_CLIENT', RedisService],
 })
 export class RedisModule {}
+
+// Graceful shutdown handler
+process.on('SIGTERM', async () => {
+  if (redisClientInstance && typeof redisClientInstance.quit === 'function') {
+    try {
+      await redisClientInstance.quit();
+      redisClientInstance = null;
+      console.log('✅ Redis connection closed gracefully');
+    } catch (error) {
+      console.error('Error closing Redis connection:', error);
+    }
+  }
+});
