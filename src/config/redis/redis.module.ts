@@ -50,7 +50,8 @@ import * as redisStore from 'cache-manager-ioredis';
             enableOfflineQueue: true, // Allow cache operations to queue during connection
             enableReadyCheck: false,
             lazyConnect: false,
-            connectTimeout: 15000,
+            connectTimeout: 30000, // 30 seconds (generous for Vercel cold starts)
+            commandTimeout: 10000, // 10 seconds per command (generous for serverless)
             retryStrategy: (times: number) => {
               if (times > 3) {
                 console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
@@ -100,7 +101,8 @@ import * as redisStore from 'cache-manager-ioredis';
             enableOfflineQueue: true, // CHANGED: Allow cache operations to queue during connection
             enableReadyCheck: false,
             lazyConnect: false,
-            connectTimeout: 10000,
+            connectTimeout: 30000, // 30 seconds (generous for Vercel cold starts)
+            commandTimeout: 10000, // 10 seconds per command (generous for serverless)
             retryStrategy: (times: number) => {
               if (times > 3) {
                 console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');

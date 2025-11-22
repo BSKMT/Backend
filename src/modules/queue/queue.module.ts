@@ -71,8 +71,8 @@ import { EmailQueueService } from './email-queue.service';
           redisConfig.enableOfflineQueue = true; // CHANGED: Allow queueing while connecting
           redisConfig.enableReadyCheck = false;
           redisConfig.lazyConnect = false; // Connect immediately
-          redisConfig.connectTimeout = 15000;
-          redisConfig.commandTimeout = 5000;
+          redisConfig.connectTimeout = 30000; // 30 seconds (generous for Vercel cold starts)
+          redisConfig.commandTimeout = 10000; // 10 seconds per command (generous for serverless)
           redisConfig.retryStrategy = (times: number) => {
             if (times > 3) {
               console.error('❌ Bull Queue: Redis connection failed after 3 retries');

@@ -74,8 +74,8 @@ let redisClientInstance: any = null;
               autoResendUnfulfilledCommands: false, // Don't resend commands on reconnect
               
               // Connection pooling
-              connectTimeout: 15000, // 15 seconds (increased for DNS resolution)
-              commandTimeout: 5000, // 5 seconds per command
+              connectTimeout: 30000, // 30 seconds (generous for Vercel cold starts)
+              commandTimeout: 10000, // 10 seconds per command (generous for serverless)
               keepAlive: 0, // Disable TCP keepalive in serverless (connections are short-lived)
               
               // Retry strategy with exponential backoff
@@ -109,8 +109,8 @@ let redisClientInstance: any = null;
               lazyConnect: false,
               autoResubscribe: false,
               autoResendUnfulfilledCommands: false,
-              connectTimeout: 15000,
-              commandTimeout: 5000,
+              connectTimeout: 30000, // 30 seconds (generous for Vercel cold starts)
+              commandTimeout: 10000, // 10 seconds per command (generous for serverless)
               keepAlive: 0,
               retryStrategy: (times: number) => {
                 if (times > 3) {
@@ -138,8 +138,8 @@ let redisClientInstance: any = null;
             lazyConnect: false,
             autoResubscribe: false,
             autoResendUnfulfilledCommands: false,
-            connectTimeout: 10000,
-            commandTimeout: 5000,
+            connectTimeout: 30000, // 30 seconds (generous for Vercel cold starts)
+            commandTimeout: 10000, // 10 seconds per command (generous for serverless)
             keepAlive: 0,
             retryStrategy: (times: number) => {
               if (times > 3) {
