@@ -69,12 +69,14 @@ export class DeviceController {
     );
 
     // Establecer cookie "remember device" por 30 días
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('remember_device', result.rememberToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
       path: '/',
+      ...(isProduction && { domain: '.bskmt.com' }), // Permitir cookies en subdominios en producción
     });
 
     return {

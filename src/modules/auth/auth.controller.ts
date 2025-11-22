@@ -144,6 +144,7 @@ export class AuthController {
       secure: isProduction,
       sameSite: 'lax' as const,
       path: '/',
+      ...(isProduction && { domain: '.bskmt.com' }), // Permitir cookies en subdominios en producción
     };
 
     // Access token - 15 minutos
@@ -188,8 +189,13 @@ export class AuthController {
     }
 
     // Limpiar cookies
-    res.clearCookie('access_token', { path: '/' });
-    res.clearCookie('refresh_token', { path: '/' });
+    const isProduction = process.env.NODE_ENV === 'production';
+    const clearOptions = {
+      path: '/',
+      ...(isProduction && { domain: '.bskmt.com' }),
+    };
+    res.clearCookie('access_token', clearOptions);
+    res.clearCookie('refresh_token', clearOptions);
 
     this.logger.log(`User logged out: ${userId}`);
 
@@ -229,6 +235,7 @@ export class AuthController {
       secure: isProduction,
       sameSite: 'lax' as const,
       path: '/',
+      ...(isProduction && { domain: '.bskmt.com' }), // Permitir cookies en subdominios en producción
     };
 
     res.cookie('access_token', accessToken, {
