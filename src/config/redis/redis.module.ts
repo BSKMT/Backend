@@ -28,52 +28,49 @@ import * as redisStore from 'cache-manager-ioredis';
           const useSSL = redisUrl.startsWith('rediss://');
           console.log(`✅ Redis cache enabled - using REDIS_URL (SSL: ${useSSL})`);
           
-          // For SSL connections
+          // Parse Redis URL to get connection details
+          // cache-manager-ioredis doesn't parse URLs correctly, so we must extract manually
+          const parsedUrl = new URL(redisUrl);
+          const cacheConfig: any = {
+            store: redisStore as any,
+            host: parsedUrl.hostname,
+            port: parseInt(parsedUrl.port) || (useSSL ? 6380 : 6379),
+            ttl: 60 * 5, // 5 minutes default TTL
+            maxRetriesPerRequest: null,
+            enableOfflineQueue: true, // Allow cache operations to queue during connection
+            enableReadyCheck: false,
+            lazyConnect: false,
+            connectTimeout: 15000,
+            retryStrategy: (times: number) => {
+              if (times > 3) {
+                console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
+                return undefined;
+              }
+              const delay = Math.min(times * 500, 2000);
+              console.log(`🔄 Cache Redis: Retry attempt ${times}/3 in ${delay}ms`);
+              return delay;
+            },
+          };
+
+          // Add password if present
+          if (parsedUrl.password) {
+            cacheConfig.password = parsedUrl.password;
+          }
+
+          // Add username if present (for ACL)
+          if (parsedUrl.username && parsedUrl.username !== 'default') {
+            cacheConfig.username = parsedUrl.username;
+          }
+          
+          // For SSL connections (Redis Cloud, Upstash)
           if (useSSL) {
-            return {
-              store: redisStore as any,
-              url: redisUrl,
-              ttl: 60 * 5, // 5 minutes default TTL
-              tls: {
-                rejectUnauthorized: false,
-                servername: new URL(redisUrl).hostname,
-              },
-              maxRetriesPerRequest: null,
-              enableOfflineQueue: true, // CHANGED: Allow cache operations to queue during connection
-              enableReadyCheck: false,
-              lazyConnect: false,
-              connectTimeout: 15000,
-              retryStrategy: (times: number) => {
-                if (times > 3) {
-                  console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
-                  return undefined;
-                }
-                const delay = Math.min(times * 500, 2000);
-                console.log(`🔄 Cache Redis: Retry attempt ${times}/3 in ${delay}ms`);
-                return delay;
-              },
-            };
-          } else {
-            // Non-SSL URL
-            return {
-              store: redisStore as any,
-              url: redisUrl,
-              ttl: 60 * 5,
-              maxRetriesPerRequest: null,
-              enableOfflineQueue: true, // CHANGED: Allow cache operations to queue during connection
-              enableReadyCheck: false,
-              lazyConnect: false,
-              retryStrategy: (times: number) => {
-                if (times > 3) {
-                  console.error('❌ Cache Redis: Connection failed after 3 retries, using in-memory cache');
-                  return undefined;
-                }
-                const delay = Math.min(times * 500, 2000);
-                console.log(`🔄 Cache Redis: Retry attempt ${times}/3 in ${delay}ms`);
-                return delay;
-              },
+            cacheConfig.tls = {
+              rejectUnauthorized: false,
+              servername: parsedUrl.hostname,
             };
           }
+
+          return cacheConfig;
         }
 
         // Fallback to host/port configuration (ONLY if REDIS_URL is not set)

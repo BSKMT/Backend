@@ -59,7 +59,7 @@ export const SessionSchema = SchemaFactory.createForClass(Session);
 SessionSchema.index({ userId: 1 });
 SessionSchema.index({ accessToken: 1 });
 SessionSchema.index({ refreshToken: 1 });
-SessionSchema.index({ expiresAt: 1 });
+// SessionSchema.index({ expiresAt: 1 }); // REMOVED: duplicate (TTL index below)
 SessionSchema.index({ isRevoked: 1 });
 
 // TTL index - MongoDB eliminará automáticamente las sesiones expiradas
