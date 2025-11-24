@@ -34,7 +34,7 @@ import { ThrottleRegister, ThrottleLogin, ThrottleResetPassword, ThrottleResendV
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Public()
   @ThrottleRegister()
@@ -160,7 +160,7 @@ export class AuthController {
       maxAge: refreshMaxAge * 24 * 60 * 60 * 1000,
     });
 
-    this.logger.log(`User logged in: ${user.email}`);
+    this.logger.log(`User logged in: ${user.email} - Cookies set with sameSite: ${cookieOptions.sameSite}, secure: ${cookieOptions.secure}`);
 
     return {
       success: true,
@@ -248,13 +248,27 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    this.logger.log(`Tokens refreshed for user: ${userId}`);
+    this.logger.log(`Tokens refreshed for user: ${userId} - Cookies updated`);
+
+    // También retornar el usuario actualizado
+    const userDoc = await this.authService.getUserById(userId);
 
     return {
       success: true,
       message: 'Token refrescado exitosamente',
       accessToken,
       refreshToken,
+      user: userDoc ? {
+        id: userDoc._id.toString(),
+        email: userDoc.email,
+        nombre: userDoc.nombre,
+        apellido: userDoc.apellido,
+        role: userDoc.role,
+        emailVerified: userDoc.emailVerified,
+        profileImage: userDoc.profileImage,
+        membershipType: userDoc.membershipType,
+        isActive: userDoc.isActive,
+      } : undefined,
     };
   }
 
@@ -275,7 +289,7 @@ export class AuthController {
         role: user.user.role,
         emailVerified: user.user.emailVerified,
         profileImage: user.user.profileImage,
-        membershipStatus: user.user.membershipStatus,
+        membershipType: user.user.membershipType,
         isActive: user.user.isActive,
       },
     };
