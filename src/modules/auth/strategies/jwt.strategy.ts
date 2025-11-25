@@ -26,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   async validate(request: Request, payload: any) {
     const token = request?.cookies?.['access_token'];
-    
+
     if (!token) {
       throw new UnauthorizedException('Token no encontrado');
     }
@@ -43,16 +43,25 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     // Verificar si el usuario existe y está activo
     const user = await this.authService.getUserById(payload.sub);
-    
+
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
+    // Return flattened user object to avoid nesting issues
+    const userObj = user.toObject ? user.toObject() : user;
     return {
       userId: payload.sub,
       email: payload.email,
       role: payload.role,
-      user,
+      // Spread user properties directly
+      nombre: userObj.nombre,
+      apellido: userObj.apellido,
+      emailVerified: userObj.emailVerified,
+      profileImage: userObj.profileImage,
+      membershipType: userObj.membershipType,
+      isActive: userObj.isActive,
+      _id: userObj._id,
     };
   }
 }

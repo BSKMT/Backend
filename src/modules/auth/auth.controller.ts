@@ -282,15 +282,15 @@ export class AuthController {
     return {
       success: true,
       user: {
-        id: user.user._id.toString(),
-        email: user.user.email,
-        nombre: user.user.nombre,
-        apellido: user.user.apellido,
-        role: user.user.role,
-        emailVerified: user.user.emailVerified,
-        profileImage: user.user.profileImage,
-        membershipType: user.user.membershipType,
-        isActive: user.user.isActive,
+        id: user.userId,
+        email: user.email,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        role: user.role,
+        emailVerified: user.emailVerified,
+        profileImage: user.profileImage,
+        membershipType: user.membershipType,
+        isActive: user.isActive,
       },
     };
   }

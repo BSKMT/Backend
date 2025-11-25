@@ -43,30 +43,36 @@ async function bootstrap() {
   app.use((req: any, res: any, next: any) => csrfMiddleware.use(req, res, next));
 
   // CORS configuration
-  const corsOrigin = configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000';
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+  const corsOrigin = configService.get<string>('CORS_ORIGIN') ||
+    (isProduction ? 'https://bskmt.com' : 'http://localhost:3000');
   const allowedOrigins = corsOrigin.split(',').map(origin => origin.trim());
-  
+
+  console.log(`🌍 CORS Configuration:`)
+  console.log(`   - Environment: ${isProduction ? 'production' : 'development'}`)
+  console.log(`   - Allowed Origins: ${allowedOrigins.join(', ')}`);
+
   app.enableCors({
     origin: (origin, callback) => {
       // Permitir requests sin origin (mobile apps, Postman, etc)
       if (!origin) {
         return callback(null, true);
       }
-      
+
       // Verificar si el origin está en la lista permitida
       if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
         return callback(null, true);
       }
-      
+
       // Rechazar origin no permitido
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'X-CSRF-Token', 
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token',
       'X-Requested-With',
       'X-Device-Fingerprint',
       'X-Client-Version',
